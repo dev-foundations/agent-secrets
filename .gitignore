@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+artifacts/
+TestResults/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Secrets must never live in this repository (that is the whole point).
+.env
+.env.*
+*.pfx
+*.key
+
+# Python example
+__pycache__/
+*.pyc

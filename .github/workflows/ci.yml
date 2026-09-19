@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test
+        run: dotnet test AgentSecrets.slnx --configuration Release
+
+      - name: Package (win-x64)
+        shell: pwsh
+        run: ./scripts/package.ps1 -Runtime win-x64
+
+      - name: Install from the package, smoke test, uninstall
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'agentsecrets-install'
+          ./scripts/install.ps1 -PackagePath artifacts/dist/agent-secrets-win-x64.zip -InstallDir $dir -NoPath -NoSkills -Yes
+          $exe = Join-Path $dir 'bin/agent-secrets.exe'
+          & $exe --version
+          if ($LASTEXITCODE -ne 0) { throw "agent-secrets --version failed" }
+          & $exe get anything 2>$null
+          if ($LASTEXITCODE -ne 2) { throw "expected 'get' to be refused" }
+          & (Join-Path $dir 'uninstall.ps1') -InstallDir $dir -KeepSkills -Yes
+          if (Test-Path $dir) { throw "uninstall left $dir behind" }

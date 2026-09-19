@@ -1,0 +1,2252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentSecrets Documentation</title>
+<meta name="description" content="AgentSecrets is a small Windows command-line tool that stores API keys in Windows Credential Manager and injects them only into the child process that needs them. Built for coding agents such as OpenAI Codex and Claude Code.">
+<meta name="color-scheme" content="light dark">
+<script>
+(function () {
+  var r = document.documentElement;
+  r.className += ' js';
+  try {
+    var t = localStorage.getItem('agentsecrets-docs-theme');
+    if (t === 'light' || t === 'dark') { r.setAttribute('data-theme', t); }
+  } catch (e) { /* storage unavailable: follow the system theme */ }
+})();
+</script>
+<style>
+/* ==========================================================================
+   Tokens
+   ========================================================================== */
+:root {
+  color-scheme: light;
+
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --surface-2: #f3f4f2;
+  --border: #e1e4df;
+  --border-strong: #c9cdc6;
+  --text: #1b1f1d;
+  --text-muted: #57605a;
+  --accent: #0f766e;
+  --accent-text: #0b5f58;
+  --accent-soft: #e4f3f0;
+  --focus: #0f766e;
+  --shadow: 0 8px 24px rgba(20, 30, 25, .12);
+
+  --code-bg: #f5f6f4;
+  --code-head-bg: #eceeea;
+  --code-text: #1f2422;
+  --out-bg: #fbfbfa;
+  --out-text: #414a45;
+  --inline-code-bg: #eef0ec;
+
+  --tok-comment: #616a64;
+  --tok-cmd: #0b5f58;
+  --tok-sub: #9a3412;
+  --tok-flag: #1d4ed8;
+  --tok-string: #166534;
+  --tok-number: #b45309;
+  --tok-key: #1d4ed8;
+  --tok-ph: #a21caf;
+  --tok-cmdlet: #5b21b6;
+  --tok-ok: #166534;
+  --tok-bad: #b42318;
+
+  --c-security: #b42318;
+  --c-security-bg: #fdeeec;
+  --c-warning: #a3530a;
+  --c-warning-bg: #fdf3e0;
+  --c-note: #1d4ed8;
+  --c-note-bg: #ebf1fe;
+  --c-tip: #166534;
+  --c-tip-bg: #e8f5ec;
+
+  --diagram-line: #6c756f;
+
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Code", "Cascadia Mono", Consolas, ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --radius: 8px;
+  --topbar-h: 56px;
+  --gutter: 16px;
+  --sidebar-w: 272px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg: #111413;
+    --surface: #171b1a;
+    --surface-2: #1c2120;
+    --border: #2a312e;
+    --border-strong: #3d4642;
+    --text: #e6e9e7;
+    --text-muted: #9ca6a0;
+    --accent: #4fd1c5;
+    --accent-text: #5eead4;
+    --accent-soft: rgba(79, 209, 197, .12);
+    --focus: #5eead4;
+    --shadow: 0 8px 24px rgba(0, 0, 0, .5);
+
+    --code-bg: #181d1b;
+    --code-head-bg: #1e2422;
+    --code-text: #e1e5e3;
+    --out-bg: #121615;
+    --out-text: #b4bcb7;
+    --inline-code-bg: #222826;
+
+    --tok-comment: #8b958f;
+    --tok-cmd: #5eead4;
+    --tok-sub: #fdba74;
+    --tok-flag: #93c5fd;
+    --tok-string: #86efac;
+    --tok-number: #fcd34d;
+    --tok-key: #93c5fd;
+    --tok-ph: #f0abfc;
+    --tok-cmdlet: #c4b5fd;
+    --tok-ok: #86efac;
+    --tok-bad: #fca5a5;
+
+    --c-security: #fca5a5;
+    --c-security-bg: rgba(248, 113, 113, .10);
+    --c-warning: #fbbf24;
+    --c-warning-bg: rgba(251, 191, 36, .09);
+    --c-note: #93c5fd;
+    --c-note-bg: rgba(96, 165, 250, .10);
+    --c-tip: #86efac;
+    --c-tip-bg: rgba(74, 222, 128, .09);
+
+    --diagram-line: #8a948e;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #111413;
+  --surface: #171b1a;
+  --surface-2: #1c2120;
+  --border: #2a312e;
+  --border-strong: #3d4642;
+  --text: #e6e9e7;
+  --text-muted: #9ca6a0;
+  --accent: #4fd1c5;
+  --accent-text: #5eead4;
+  --accent-soft: rgba(79, 209, 197, .12);
+  --focus: #5eead4;
+  --shadow: 0 8px 24px rgba(0, 0, 0, .5);
+
+  --code-bg: #181d1b;
+  --code-head-bg: #1e2422;
+  --code-text: #e1e5e3;
+  --out-bg: #121615;
+  --out-text: #b4bcb7;
+  --inline-code-bg: #222826;
+
+  --tok-comment: #8b958f;
+  --tok-cmd: #5eead4;
+  --tok-sub: #fdba74;
+  --tok-flag: #93c5fd;
+  --tok-string: #86efac;
+  --tok-number: #fcd34d;
+  --tok-key: #93c5fd;
+  --tok-ph: #f0abfc;
+  --tok-cmdlet: #c4b5fd;
+  --tok-ok: #86efac;
+  --tok-bad: #fca5a5;
+
+  --c-security: #fca5a5;
+  --c-security-bg: rgba(248, 113, 113, .10);
+  --c-warning: #fbbf24;
+  --c-warning-bg: rgba(251, 191, 36, .09);
+  --c-note: #93c5fd;
+  --c-note-bg: rgba(96, 165, 250, .10);
+  --c-tip: #86efac;
+  --c-tip-bg: rgba(74, 222, 128, .09);
+
+  --diagram-line: #8a948e;
+}
+
+@media (min-width: 640px) {
+  :root { --gutter: 28px; }
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.65;
+  overflow-wrap: break-word;
+}
+
+h1, h2, h3 { line-height: 1.25; margin: 0; }
+p { margin: 0 0 1rem; }
+ul, ol { margin: 0 0 1rem; padding-left: 1.4rem; }
+li { margin: .35rem 0; }
+li > ul, li > ol { margin-bottom: 0; }
+
+a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+a:hover { text-decoration-thickness: 2px; }
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+code, pre, kbd {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}
+
+:not(pre) > code {
+  font-size: .875em;
+  padding: .12em .36em;
+  border-radius: 5px;
+  background: var(--inline-code-bg);
+  border: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+a > code { color: inherit; }
+
+strong { font-weight: 650; }
+
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.icon {
+  width: 1.25rem; height: 1.25rem;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px; top: -64px;
+  z-index: 100;
+  padding: .55rem .9rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+.skip-link:focus { top: 8px; }
+
+/* ==========================================================================
+   Top bar
+   ========================================================================== */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--topbar-h);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-inner {
+  max-width: 1200px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  margin-right: auto;
+  color: var(--text);
+  font-weight: 650;
+  letter-spacing: -.005em;
+  text-decoration: none;
+  min-width: 0;
+}
+.brand .icon { color: var(--accent); width: 1.4rem; height: 1.4rem; }
+.brand-sub {
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: .875rem;
+  padding-left: .55rem;
+  border-left: 1px solid var(--border-strong);
+}
+@media (max-width: 420px) { .brand-sub { display: none; } }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  min-height: 2.25rem;
+  padding: 0 .7rem;
+  font: 500 .875rem/1 var(--font-sans);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.btn:hover { background: var(--surface-2); border-color: var(--text-muted); }
+.btn--icon { width: 2.25rem; padding: 0; }
+.btn--gh { text-decoration: none; }
+.icon--gh { fill: currentColor; stroke: none; }
+.gh-text { display: none; }
+@media (min-width: 560px) {
+  .btn--gh { width: auto; padding: 0 .7rem; }
+  .gh-text { display: inline; }
+}
+
+#toc-toggle { display: none; }
+.js #toc-toggle { display: inline-flex; }
+@media (min-width: 1024px) { .js #toc-toggle { display: none; } }
+
+.icon-sun { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .icon-sun { display: block; }
+  :root:not([data-theme="light"]) .icon-moon { display: none; }
+}
+:root[data-theme="dark"] .icon-sun { display: block; }
+:root[data-theme="dark"] .icon-moon { display: none; }
+html:not(.js) #theme-toggle { display: none; }
+
+/* ==========================================================================
+   Layout + sidebar
+   ========================================================================== */
+.layout {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+main {
+  min-width: 0;
+  padding: 0 var(--gutter) 3rem;
+}
+.content { max-width: 47rem; margin: 0 auto; }
+
+.sidebar { padding: 1rem var(--gutter); border-bottom: 1px solid var(--border); }
+.toc-title {
+  margin: 0 0 .5rem;
+  font-size: .72rem;
+  font-weight: 650;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.toc-list { list-style: none; margin: 0; padding: 0; }
+.toc-list li { margin: 0; }
+.toc-list a {
+  display: flex;
+  gap: .6rem;
+  align-items: baseline;
+  padding: .34rem .6rem;
+  border-left: 2px solid transparent;
+  border-radius: 0 6px 6px 0;
+  color: var(--text-muted);
+  font-size: .9rem;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease;
+}
+.toc-list a:hover { color: var(--text); background: var(--surface-2); }
+.toc-list a[aria-current="true"] {
+  color: var(--accent-text);
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.toc-num {
+  flex: none;
+  width: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: .78rem;
+  text-align: right;
+  opacity: .85;
+}
+.toc-list code { font-size: .82em; padding: .05em .3em; }
+.toc-extra {
+  margin: 1rem 0 0;
+  padding-top: .85rem;
+  border-top: 1px solid var(--border);
+  font-size: .85rem;
+  color: var(--text-muted);
+}
+
+.backdrop { display: none; }
+
+@media (max-width: 1023.98px) {
+  .js .sidebar {
+    position: fixed;
+    top: var(--topbar-h);
+    left: 0; right: 0;
+    z-index: 40;
+    max-height: calc(100vh - var(--topbar-h));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-strong);
+    box-shadow: var(--shadow);
+    display: none;
+  }
+  .js .sidebar.is-open { display: block; }
+  .js .backdrop.is-open {
+    display: block;
+    position: fixed;
+    inset: var(--topbar-h) 0 0 0;
+    z-index: 30;
+    background: rgba(0, 0, 0, .35);
+  }
+}
+@media (min-width: 600px) and (max-width: 1023.98px) {
+  .toc-list { columns: 2; column-gap: 1.5rem; }
+  .toc-list li { break-inside: avoid; }
+}
+
+@media (min-width: 1024px) {
+  .layout { grid-template-columns: var(--sidebar-w) minmax(0, 1fr); }
+  .sidebar {
+    position: sticky;
+    top: var(--topbar-h);
+    align-self: start;
+    height: calc(100vh - var(--topbar-h));
+    overflow-y: auto;
+    padding: 1.75rem .75rem 2rem var(--gutter);
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+  }
+  main { padding-left: 3rem; padding-right: var(--gutter); }
+  .content { margin: 0; }
+}
+
+/* ==========================================================================
+   Hero
+   ========================================================================== */
+.hero { padding: 2.75rem 0 2.5rem; scroll-margin-top: var(--topbar-h); }
+.eyebrow {
+  margin: 0 0 .6rem;
+  font-size: .78rem;
+  font-weight: 650;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+.hero h1 {
+  font-size: clamp(2.1rem, 6vw, 2.9rem);
+  letter-spacing: -.02em;
+  font-weight: 700;
+}
+.tagline {
+  margin: .9rem 0 1rem;
+  font-size: clamp(1.12rem, 2.6vw, 1.32rem);
+  line-height: 1.45;
+  font-weight: 600;
+  letter-spacing: -.005em;
+}
+.lead { color: var(--text-muted); font-size: 1.05rem; max-width: 42rem; }
+.lead strong, .lead em { color: var(--text); }
+.hero-note {
+  margin: 1rem 0 0;
+  padding-left: .9rem;
+  border-left: 3px solid var(--accent);
+  font-weight: 500;
+}
+.hero-install {
+  margin: 1.5rem 0 0;
+  padding: .9rem 1rem .1rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.hero-install-title { margin: 0; line-height: 1.5; }
+.hero-install-title strong { color: var(--accent-text); }
+.hero-install-title span { color: var(--text-muted); font-size: .95rem; }
+.hero-install .code { margin: .6rem 0 .9rem; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.5rem; }
+.hero-actions a { text-decoration: none; }
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+.btn--primary:hover { background: var(--accent-text); border-color: var(--accent-text); color: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .btn--primary,
+  :root:not([data-theme="light"]) .btn--primary:hover { color: #06201d; }
+}
+:root[data-theme="dark"] .btn--primary,
+:root[data-theme="dark"] .btn--primary:hover { color: #06201d; }
+
+/* ==========================================================================
+   Sections + headings
+   ========================================================================== */
+.doc-section {
+  padding: 2.5rem 0 1.5rem;
+  border-top: 1px solid var(--border);
+  scroll-margin-top: var(--topbar-h);
+}
+.doc-section > h2 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: .7rem;
+  margin-bottom: 1.1rem;
+  font-size: clamp(1.4rem, 3.4vw, 1.7rem);
+  letter-spacing: -.012em;
+  font-weight: 680;
+}
+.sec-num {
+  flex: none;
+  min-width: 2.1em;
+  padding: .18em .4em;
+  font-family: var(--font-mono);
+  font-size: .62em;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-align: center;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 6px;
+  transform: translateY(-.12em);
+}
+.doc-section h2 code { font-size: .82em; }
+.doc-section h3 {
+  margin: 1.75rem 0 .7rem;
+  font-size: 1.08rem;
+  font-weight: 650;
+  scroll-margin-top: calc(var(--topbar-h) + 16px);
+}
+.anchor {
+  color: var(--text-muted);
+  font-weight: 400;
+  text-decoration: none;
+  opacity: 0;
+  padding: 0 .2em;
+  transition: opacity .15s ease, color .15s ease;
+}
+h2:hover .anchor, .anchor:focus-visible { opacity: 1; }
+.anchor:hover { color: var(--accent-text); }
+@media (hover: none) { .anchor { opacity: .55; } }
+
+/* ==========================================================================
+   Code blocks
+   ========================================================================== */
+.code {
+  margin: 1.15rem 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--code-bg);
+  overflow: hidden;
+}
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  min-height: 2.3rem;
+  padding: 0 .35rem 0 .95rem;
+  background: var(--code-head-bg);
+  border-bottom: 1px solid var(--border);
+}
+.code-lang {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: .7rem;
+  font-weight: 650;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.code-lang::before {
+  content: "";
+  width: .5rem; height: .5rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.code pre {
+  margin: 0;
+  padding: .95rem 1.05rem;
+  overflow-x: auto;
+  font-size: .855rem;
+  line-height: 1.62;
+  color: var(--code-text);
+  tab-size: 2;
+  white-space: pre;
+}
+.code pre:focus-visible { outline-offset: -2px; border-radius: 0 0 var(--radius) var(--radius); }
+.code pre code { font-size: inherit; }
+
+/* program output: quieter, dashed, no accent dot */
+.code--out { background: var(--out-bg); border-style: dashed; border-color: var(--border-strong); }
+.code--out .code-head { background: transparent; border-bottom: 1px dashed var(--border-strong); }
+.code--out .code-lang::before {
+  width: auto; height: auto;
+  border-radius: 0;
+  background: none;
+  content: ">_";
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.code--out pre { color: var(--out-text); }
+
+.code-group { margin: 1.15rem 0; }
+.code-group > .code { margin: 0; }
+.code-group > .code:not(:first-child) { border-top-left-radius: 0; border-top-right-radius: 0; border-top-width: 0; }
+.code-group > .code:not(:last-child) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.code-group > .code--out:not(:first-child) { border-top-width: 0; }
+
+.copy-btn {
+  min-height: 1.75rem;
+  min-width: 4.1rem;
+  padding: 0 .6rem;
+  font: 600 .72rem/1 var(--font-sans);
+  letter-spacing: .02em;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease;
+}
+.copy-btn:hover { color: var(--text); background: var(--surface); border-color: var(--border-strong); }
+.copy-btn.is-copied { color: var(--tok-ok); border-color: currentColor; }
+.copy-btn.is-failed { color: var(--tok-bad); border-color: currentColor; }
+
+.tok-comment { color: var(--tok-comment); font-style: italic; }
+.tok-cmd { color: var(--tok-cmd); font-weight: 700; }
+.tok-sub { color: var(--tok-sub); font-weight: 600; }
+.tok-flag { color: var(--tok-flag); }
+.tok-sep { color: var(--tok-comment); font-weight: 700; }
+.tok-string { color: var(--tok-string); }
+.tok-number, .tok-const { color: var(--tok-number); }
+.tok-key { color: var(--tok-key); }
+.tok-ph { color: var(--tok-ph); font-style: italic; }
+.tok-cmdlet { color: var(--tok-cmdlet); }
+.tok-ok { color: var(--tok-ok); font-weight: 700; }
+.tok-bad { color: var(--tok-bad); font-weight: 700; }
+
+/* ==========================================================================
+   Callouts
+   ========================================================================== */
+.callout {
+  --c: var(--c-note);
+  --c-bg: var(--c-note-bg);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .1rem .75rem;
+  margin: 1.25rem 0;
+  padding: .9rem 1rem .9rem .9rem;
+  background: var(--c-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--c);
+  border-radius: var(--radius);
+}
+.callout--security { --c: var(--c-security); --c-bg: var(--c-security-bg); }
+.callout--warning { --c: var(--c-warning); --c-bg: var(--c-warning-bg); }
+.callout--note { --c: var(--c-note); --c-bg: var(--c-note-bg); }
+.callout--tip { --c: var(--c-tip); --c-bg: var(--c-tip-bg); }
+.callout > .icon { color: var(--c); margin-top: .15rem; grid-row: 1 / span 2; }
+.callout-title {
+  margin: 0;
+  font-size: .74rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--c);
+}
+.callout-title code { text-transform: none; letter-spacing: 0; font-size: 1.05em; }
+.callout-body { grid-column: 2; min-width: 0; }
+.callout-body > :last-child { margin-bottom: 0; }
+.callout-body > :first-child { margin-top: .15rem; }
+
+/* threat model: the one thing everybody must read */
+.threat {
+  margin: 1.25rem 0 1.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.threat-head {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .6rem 1rem;
+  font-size: .74rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--c-security);
+  background: var(--c-security-bg);
+  border-bottom: 1px solid var(--border);
+}
+.threat-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
+.threat-cell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .8rem;
+  padding: 1.05rem 1rem;
+}
+.threat-cell + .threat-cell { border-top: 1px solid var(--border); }
+.threat-cell p { margin: 0; font-size: 1.06rem; line-height: 1.5; font-weight: 600; }
+.threat-cell .icon { width: 1.6rem; height: 1.6rem; stroke-width: 2; margin-top: .05rem; }
+.threat-cell--yes .icon { color: var(--c-tip); }
+.threat-cell--no .icon { color: var(--c-security); }
+.threat-cell--no { border-left: 4px solid var(--c-security); }
+.threat-cell--yes { border-left: 4px solid var(--c-tip); }
+.threat-label {
+  display: block;
+  margin-bottom: .2rem;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+@media (min-width: 720px) {
+  .threat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .threat-cell + .threat-cell { border-top: 0; }
+  .threat-cell--no { border-left-width: 1px; border-left-color: var(--border); box-shadow: inset 4px 0 0 var(--c-security); }
+}
+
+/* ==========================================================================
+   Principle, feature cards, steps
+   ========================================================================== */
+.principle {
+  margin: 1.5rem 0 .5rem;
+  padding: 1.1rem 1.1rem 1.2rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.principle-label {
+  margin: 0 0 .75rem;
+  font-size: .74rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+.principle-steps {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  font-weight: 650;
+  font-size: 1.05rem;
+}
+.principle-steps li {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.principle-steps li + li::before {
+  content: "\2192";
+  color: var(--accent);
+  font-weight: 400;
+}
+@media (min-width: 720px) {
+  .principle-steps { flex-direction: row; flex-wrap: wrap; gap: .4rem .6rem; }
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .8rem;
+  margin: 1.4rem 0 1rem;
+}
+@media (min-width: 680px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.card {
+  padding: 1rem 1.05rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.card h3 {
+  margin: 0 0 .4rem;
+  font-size: .95rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.card h3 .icon { color: var(--accent); width: 1.15rem; height: 1.15rem; }
+.card p { margin: 0; font-size: .95rem; line-height: 1.6; color: var(--text-muted); }
+.card p strong, .card p em, .card p code { color: var(--text); }
+
+.steps { list-style: none; counter-reset: step; padding: 0; margin: 0 0 1.1rem; }
+.steps > li {
+  counter-increment: step;
+  position: relative;
+  margin: 0;
+  padding: .3rem 0 .55rem 2.6rem;
+}
+.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0; top: .3rem;
+  width: 1.7rem; height: 1.7rem;
+  display: grid;
+  place-items: center;
+  font: 600 .8rem/1 var(--font-mono);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+
+/* ==========================================================================
+   Diagram
+   ========================================================================== */
+.diagram {
+  margin: 1.25rem 0 1.5rem;
+  padding: 1.1rem 1rem .9rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.dg { display: block; width: 100%; height: auto; }
+.dg--wide { display: none; }
+.dg--tall { max-width: 380px; margin: 0 auto; }
+@media (min-width: 760px) {
+  .dg--wide { display: block; }
+  .dg--tall { display: none; }
+}
+.dg text { font-family: var(--font-sans); font-size: 13.5px; fill: var(--text); }
+.dg .dg-mono { font-family: var(--font-mono); font-size: 12.5px; font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+.dg .dg-strong { font-weight: 700; }
+.dg .dg-lane { font-size: 11px; font-weight: 700; letter-spacing: .09em; fill: var(--text-muted); }
+.dg .dg-note { font-size: 12px; fill: var(--text-muted); }
+.dg .dg-num { font-family: var(--font-mono); font-size: 12px; font-weight: 700; fill: var(--accent-text); }
+.dg .dg-cmdword { fill: var(--tok-cmd); font-weight: 700; }
+.dg-box { fill: var(--surface); stroke: var(--border-strong); stroke-width: 1.25; }
+.dg-box--vault { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.dg-box--child { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.dg-line { fill: none; stroke: var(--diagram-line); stroke-width: 1.5; }
+.dg-head { fill: var(--diagram-line); stroke: none; }
+.dg-dot { fill: var(--surface); stroke: var(--accent); stroke-width: 1.5; }
+.diagram figcaption {
+  margin-top: .9rem;
+  padding-top: .8rem;
+  border-top: 1px solid var(--border);
+  font-size: .9rem;
+  color: var(--text-muted);
+}
+.diagram figcaption ol { margin: .35rem 0 0; }
+.diagram figcaption li { margin: .15rem 0; }
+
+/* ==========================================================================
+   Tables
+   ========================================================================== */
+.table-wrap {
+  margin: 1.25rem 0;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+table { width: 100%; border-collapse: collapse; font-size: .93rem; line-height: 1.55; }
+th, td { padding: .7rem .9rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+tbody tr:last-child > * { border-bottom: 0; }
+thead th {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+tbody th { font-weight: 600; }
+.table--kv tbody th { width: 32%; min-width: 9rem; }
+.table--paths code { white-space: nowrap; overflow-wrap: normal; }
+.table--paths { min-width: 40rem; }
+.table--codes tbody th { width: 9rem; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .table--stack thead {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+  }
+  .table--stack, .table--stack tbody, .table--stack tr, .table--stack th, .table--stack td { display: block; width: auto; }
+  .table--stack tbody th { width: auto; min-width: 0; padding: .8rem .9rem .25rem; border-bottom: 0; }
+  .table--stack td { padding: 0 .9rem .85rem; }
+  .table--stack tbody tr:last-child td { border-bottom: 0; }
+}
+
+/* ==========================================================================
+   Misc
+   ========================================================================== */
+.two-col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 2rem; }
+.list-title {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin: 1.5rem 0 .6rem;
+  font-size: 1.08rem;
+  font-weight: 650;
+}
+.list-title .icon { width: 1.2rem; height: 1.2rem; stroke-width: 2; }
+.list-title--yes .icon { color: var(--c-tip); }
+.list-title--no .icon { color: var(--c-security); }
+
+.to-top {
+  position: fixed;
+  right: 16px; bottom: 16px;
+  z-index: 20;
+  width: 2.6rem; height: 2.6rem;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition: opacity .2s ease, transform .2s ease, visibility .2s;
+  text-decoration: none;
+}
+.to-top.is-visible { opacity: 1; visibility: visible; transform: none; }
+
+.footer {
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem var(--gutter) 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1.5rem;
+  justify-content: space-between;
+}
+.footer p { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+
+/* ==========================================================================
+   Print
+   ========================================================================== */
+@media print {
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+    color-scheme: light;
+    --bg: #ffffff; --surface: #ffffff; --surface-2: #f4f4f4;
+    --border: #cccccc; --border-strong: #999999;
+    --text: #000000; --text-muted: #333333;
+    --accent: #0f766e; --accent-text: #0b5f58; --accent-soft: #eef6f5;
+    --code-bg: #f7f7f7; --code-head-bg: #eeeeee; --code-text: #000000;
+    --out-bg: #ffffff; --out-text: #222222; --inline-code-bg: #f1f1f1;
+    --tok-comment: #555555; --tok-cmd: #0b5f58; --tok-sub: #9a3412; --tok-flag: #1d4ed8;
+    --tok-string: #166534; --tok-number: #b45309; --tok-key: #1d4ed8; --tok-ph: #a21caf;
+    --tok-cmdlet: #5b21b6; --tok-ok: #166534; --tok-bad: #b42318;
+    --c-security: #b42318; --c-security-bg: #ffffff; --c-warning: #a3530a; --c-warning-bg: #ffffff;
+    --c-note: #1d4ed8; --c-note-bg: #ffffff; --c-tip: #166534; --c-tip-bg: #ffffff;
+    --diagram-line: #555555;
+  }
+  .topbar, .sidebar, .backdrop, .to-top, .copy-btn, .skip-link, .hero-actions, .anchor { display: none !important; }
+  .layout { display: block; max-width: none; }
+  main { padding: 0; }
+  .content { max-width: none; }
+  body { font-size: 10.5pt; }
+  .code pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; }
+  .table-wrap { overflow: visible; }
+  .table--paths { min-width: 0; }
+  .table--paths code { white-space: normal; overflow-wrap: anywhere; }
+  .code, .callout, .threat, .card, .diagram, tr { break-inside: avoid; }
+  h2, h3 { break-after: avoid; }
+  a[href^="http"]::after { content: " (" attr(href) ")"; font-size: .85em; }
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-logo" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><path d="M12 14.5v2.5"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5.2c0 4.3-2.8 8-7 9.8-4.2-1.8-7-5.5-7-9.8V6l7-3z"/><path d="M12 8.5v4"/><path d="M12 15.8v.01"/></symbol>
+  <symbol id="i-warning" viewBox="0 0 24 24"><path d="M12 4l9.2 16H2.8L12 4z"/><path d="M12 10v4.5"/><path d="M12 17.4v.01"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.8v.01"/></symbol>
+  <symbol id="i-tip" viewBox="0 0 24 24"><path d="M8.5 14.5A6 6 0 1 1 15.5 14.5V17h-7z"/><path d="M10 20.5h4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.4l2.7 2.7L16 9.6"/></symbol>
+  <symbol id="i-cross" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6"/><path d="M15 9l-6 6"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5"/><path d="M12 19v2.5"/><path d="M2.5 12H5"/><path d="M19 12h2.5"/><path d="M5.3 5.3l1.8 1.8"/><path d="M16.9 16.9l1.8 1.8"/><path d="M5.3 18.7l1.8-1.8"/><path d="M16.9 7.1l1.8-1.8"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.2A8 8 0 0 1 9.8 4a8 8 0 1 0 10.2 10.2z"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-vault" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M12 9v-1"/><path d="M12 16v-1"/></symbol>
+  <symbol id="i-inject" viewBox="0 0 24 24"><path d="M4 12h11"/><path d="M11 8l4 4-4 4"/><rect x="15" y="6" width="5.5" height="12" rx="1.5"/></symbol>
+  <symbol id="i-pipe" viewBox="0 0 24 24"><path d="M4 8h16"/><path d="M4 16h16"/><path d="M8 5l-3 3 3 3"/><path d="M16 13l3 3-3 3"/></symbol>
+  <symbol id="i-github" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></symbol>
+  <symbol id="i-noexit" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.7 5.7l12.6 12.6"/></symbol>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#top" aria-label="AgentSecrets documentation, back to top">
+      <svg class="icon" aria-hidden="true"><use href="#i-logo"/></svg>
+      <span>AgentSecrets</span>
+      <span class="brand-sub">Documentation</span>
+    </a>
+    <a class="btn btn--icon btn--gh" href="https://github.com/dev-foundations/agent-secrets" aria-label="AgentSecrets on GitHub" title="AgentSecrets on GitHub">
+      <svg class="icon icon--gh" aria-hidden="true"><use href="#i-github"/></svg>
+      <span class="gh-text">GitHub</span>
+    </a>
+    <button class="btn" id="toc-toggle" type="button" aria-expanded="false" aria-controls="toc" aria-label="Toggle table of contents">
+      <svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg>
+      <span>Contents</span>
+    </button>
+    <button class="btn btn--icon" id="theme-toggle" type="button" aria-label="Switch colour theme">
+      <svg class="icon icon-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+      <svg class="icon icon-sun" aria-hidden="true"><use href="#i-sun"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="backdrop" id="toc-backdrop"></div>
+
+<div class="layout">
+
+  <nav class="sidebar" id="toc" aria-label="Table of contents">
+    <p class="toc-title" id="toc-heading">Contents</p>
+    <ol class="toc-list" aria-labelledby="toc-heading">
+      <li><a href="#1-the-problem"><span class="toc-num">1</span><span>The problem</span></a></li>
+      <li><a href="#2-how-it-works"><span class="toc-num">2</span><span>How it works</span></a></li>
+      <li><a href="#3-installation"><span class="toc-num">3</span><span>Installation</span></a></li>
+      <li><a href="#4-add-your-first-secret"><span class="toc-num">4</span><span>Add your first secret</span></a></li>
+      <li><a href="#5-list-check-and-remove-secrets"><span class="toc-num">5</span><span>List, check and remove secrets</span></a></li>
+      <li><a href="#6-run-a-command-with-one-secret"><span class="toc-num">6</span><span>Run a command with one secret</span></a></li>
+      <li><a href="#7-run-a-command-with-several-secrets"><span class="toc-num">7</span><span>Run a command with several secrets</span></a></li>
+      <li><a href="#8-project-manifest-agentsecretsjson"><span class="toc-num">8</span><span>Project manifest: <code>.agentsecrets.json</code></span></a></li>
+      <li><a href="#9-using-agentsecrets-with-codex"><span class="toc-num">9</span><span>Using AgentSecrets with Codex</span></a></li>
+      <li><a href="#10-using-agentsecrets-with-claude-code"><span class="toc-num">10</span><span>Using AgentSecrets with Claude Code</span></a></li>
+      <li><a href="#11-installing-the-agent-skill"><span class="toc-num">11</span><span>Installing the Agent Skill</span></a></li>
+      <li><a href="#12-security-model"><span class="toc-num">12</span><span>Security model</span></a></li>
+      <li><a href="#13-troubleshooting"><span class="toc-num">13</span><span>Troubleshooting</span></a></li>
+      <li><a href="#14-uninstalling"><span class="toc-num">14</span><span>Uninstalling</span></a></li>
+      <li><a href="#15-command-reference"><span class="toc-num">15</span><span>Command reference</span></a></li>
+      <li><a href="#16-development"><span class="toc-num">16</span><span>Development</span></a></li>
+    </ol>
+    <p class="toc-extra">See also: <a href="SECURITY.md">SECURITY.md</a> · <a href="README.md">README.md</a> · <a href="https://github.com/dev-foundations/agent-secrets">GitHub repository</a></p>
+  </nav>
+
+  <main id="main" tabindex="-1">
+    <div class="content">
+
+      <!-- ============================ HERO ============================ -->
+      <section class="hero" id="top" aria-labelledby="page-title">
+        <p class="eyebrow">Windows command-line tool</p>
+        <h1 id="page-title">AgentSecrets</h1>
+        <p class="tagline">Store a secret once. Refer to it by name. Inject it only into the process that needs it.</p>
+        <p class="lead">AgentSecrets is a small Windows command-line tool for developers who work with coding agents such as <strong>OpenAI Codex</strong> and <strong>Claude Code</strong>. Your API keys live in Windows Credential Manager; agents and scripts only ever see their <em>names</em>.</p>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>agent-secrets set openai                                           # once per machine (hidden prompt)
+agent-secrets run --env OPENAI_API_KEY=openai -- python demo.py    # any time, by you or your agent</code></pre>
+        </div>
+
+        <p class="hero-note">No <code>.env</code> files. No keys in prompts, repositories, shell history or persistent environment variables.</p>
+
+        <div class="hero-install">
+          <p class="hero-install-title"><strong>Install</strong> <span>(PowerShell, no admin rights; installs the tool and the skill for Claude Code and Codex):</span></p>
+          <div class="code code--cmd" data-lang="powershell">
+            <div class="code-head"><span class="code-lang">PowerShell</span></div>
+            <pre tabindex="0"><code>irm https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.ps1 | iex</code></pre>
+          </div>
+        </div>
+
+        <div class="hero-actions">
+          <a class="btn btn--primary" href="#3-installation">Installation details</a>
+          <a class="btn" href="#4-add-your-first-secret">Add your first secret</a>
+          <a class="btn" href="#12-security-model">Security model</a>
+        </div>
+      </section>
+
+      <!-- ============================ 1 ============================ -->
+      <section class="doc-section" id="1-the-problem" aria-labelledby="h-1">
+        <h2 id="h-1"><span class="sec-num" aria-hidden="true">1</span><span><span class="sr-only">1. </span>The problem</span><a class="anchor" href="#1-the-problem" aria-label="Link to section 1, The problem">#</a></h2>
+
+        <p>Every project that calls an API needs a credential, and the usual answers all leak:</p>
+        <ul>
+          <li><strong><code>.env</code> files</strong> get copied from project to project, committed by accident, and read by any agent that lists the directory.</li>
+          <li><strong>Persistent environment variables</strong> are visible to every process you ever start.</li>
+          <li><strong>Pasting a key into an agent prompt</strong> puts it in a transcript you do not control.</li>
+        </ul>
+        <p>The result is <em>secret proliferation</em>: the same OpenAI key in a dozen folders, none of which you remember. AgentSecrets replaces all of that with one rule:</p>
+
+        <div class="principle">
+          <p class="principle-label">The one rule</p>
+          <ol class="principle-steps">
+            <li>Store once</li>
+            <li>refer to by name</li>
+            <li>inject only when executing a process.</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ============================ 2 ============================ -->
+      <section class="doc-section" id="2-how-it-works" aria-labelledby="h-2">
+        <h2 id="h-2"><span class="sec-num" aria-hidden="true">2</span><span><span class="sr-only">2. </span>How it works</span><a class="anchor" href="#2-how-it-works" aria-label="Link to section 2, How it works">#</a></h2>
+
+        <figure class="diagram">
+          <!-- wide layout -->
+          <svg class="dg dg--wide" viewBox="0 0 780 388" role="img" aria-labelledby="dgw-title dgw-desc">
+            <title id="dgw-title">How AgentSecrets stores and injects a secret</title>
+            <desc id="dgw-desc">Once per machine you run agent-secrets set openai; a hidden prompt stores the value in Windows Credential Manager. Any time, you or your agent run agent-secrets run -- python app.py. It reads .agentsecrets.json, reads the credential AgentSecrets/openai from Credential Manager, and starts the child process with OPENAI_API_KEY set. Only that child process sees the value.</desc>
+
+            <text class="dg-lane" x="20" y="22">YOU, ONCE PER MACHINE</text>
+            <text class="dg-lane" x="400" y="22">YOU OR YOUR AGENT, ANY TIME</text>
+
+            <rect class="dg-box" x="20" y="36" width="280" height="52" rx="8"/>
+            <text class="dg-mono" x="160" y="67" text-anchor="middle"><tspan class="dg-cmdword">agent-secrets set</tspan> openai</text>
+
+            <path class="dg-line" d="M160 88V163"/>
+            <path class="dg-head" d="M155 162h10l-5 9z"/>
+            <text class="dg-note" x="174" y="131">hidden prompt</text>
+
+            <rect class="dg-box dg-box--vault" x="20" y="172" width="280" height="96" rx="8"/>
+            <text class="dg-strong" x="160" y="204" text-anchor="middle">Windows Credential Manager</text>
+            <text class="dg-note" x="160" y="225" text-anchor="middle">per user, encrypted by Windows</text>
+            <text class="dg-mono" x="160" y="249" text-anchor="middle">AgentSecrets/openai</text>
+
+            <rect class="dg-box" x="400" y="36" width="360" height="52" rx="8"/>
+            <text class="dg-mono" x="580" y="67" text-anchor="middle"><tspan class="dg-cmdword">agent-secrets run</tspan> -- python app.py</text>
+
+            <path class="dg-line" d="M440 88V307"/>
+            <path class="dg-head" d="M435 306h10l-5 9z"/>
+
+            <circle class="dg-dot" cx="440" cy="124" r="11"/>
+            <text class="dg-num" x="440" y="124" dy=".35em" text-anchor="middle">1</text>
+            <text x="464" y="120">read <tspan class="dg-mono">.agentsecrets.json</tspan></text>
+            <text class="dg-mono dg-note" x="464" y="139">OPENAI_API_KEY -&gt; "openai"</text>
+
+            <path class="dg-line" d="M429 220H310"/>
+            <path class="dg-head" d="M311 215v10l-9-5z"/>
+            <circle class="dg-dot" cx="440" cy="220" r="11"/>
+            <text class="dg-num" x="440" y="220" dy=".35em" text-anchor="middle">2</text>
+            <text x="464" y="216">read <tspan class="dg-mono">"AgentSecrets/openai"</tspan></text>
+            <text class="dg-note" x="464" y="235">from Credential Manager</text>
+
+            <circle class="dg-dot" cx="440" cy="276" r="11"/>
+            <text class="dg-num" x="440" y="276" dy=".35em" text-anchor="middle">3</text>
+            <text x="464" y="272">start child process with</text>
+            <text class="dg-mono dg-note" x="464" y="291">OPENAI_API_KEY=&lt;secret&gt;</text>
+
+            <rect class="dg-box dg-box--child" x="400" y="316" width="360" height="60" rx="8"/>
+            <text class="dg-mono dg-strong" x="580" y="342" text-anchor="middle">python app.py</text>
+            <text class="dg-note" x="580" y="362" text-anchor="middle">only this process sees it</text>
+          </svg>
+
+          <!-- tall layout for narrow screens -->
+          <svg class="dg dg--tall" viewBox="0 0 340 596" role="img" aria-labelledby="dgt-title dgt-desc">
+            <title id="dgt-title">How AgentSecrets stores and injects a secret</title>
+            <desc id="dgt-desc">Once per machine you run agent-secrets set openai; a hidden prompt stores the value in Windows Credential Manager. Any time, you or your agent run agent-secrets run -- python app.py. It reads .agentsecrets.json, reads the credential AgentSecrets/openai from Credential Manager, and starts the child process with OPENAI_API_KEY set. Only that child process sees the value.</desc>
+
+            <text class="dg-lane" x="28" y="16">YOU, ONCE PER MACHINE</text>
+            <rect class="dg-box" x="28" y="26" width="300" height="48" rx="8"/>
+            <text class="dg-mono" x="178" y="55" text-anchor="middle"><tspan class="dg-cmdword">agent-secrets set</tspan> openai</text>
+
+            <path class="dg-line" d="M178 74V113"/>
+            <path class="dg-head" d="M173 112h10l-5 9z"/>
+            <text class="dg-note" x="192" y="100">hidden prompt</text>
+
+            <rect class="dg-box dg-box--vault" x="28" y="122" width="300" height="92" rx="8"/>
+            <text class="dg-strong" x="178" y="152" text-anchor="middle">Windows Credential Manager</text>
+            <text class="dg-note" x="178" y="173" text-anchor="middle">per user, encrypted by Windows</text>
+            <text class="dg-mono" x="178" y="196" text-anchor="middle">AgentSecrets/openai</text>
+
+            <text class="dg-lane" x="28" y="250">YOU OR YOUR AGENT, ANY TIME</text>
+            <rect class="dg-box" x="28" y="260" width="300" height="48" rx="8"/>
+            <text class="dg-mono" x="178" y="289" text-anchor="middle"><tspan class="dg-cmdword">agent-secrets run</tspan> -- python app.py</text>
+
+            <path class="dg-line" d="M56 308V517"/>
+            <path class="dg-head" d="M51 516h10l-5 9z"/>
+
+            <circle class="dg-dot" cx="56" cy="346" r="11"/>
+            <text class="dg-num" x="56" y="346" dy=".35em" text-anchor="middle">1</text>
+            <text x="80" y="342">read <tspan class="dg-mono">.agentsecrets.json</tspan></text>
+            <text class="dg-mono dg-note" x="80" y="361">OPENAI_API_KEY -&gt; "openai"</text>
+
+            <path class="dg-line" d="M45 412H10V168H20"/>
+            <path class="dg-head" d="M19 163v10l9-5z"/>
+            <circle class="dg-dot" cx="56" cy="412" r="11"/>
+            <text class="dg-num" x="56" y="412" dy=".35em" text-anchor="middle">2</text>
+            <text x="80" y="408">read <tspan class="dg-mono">"AgentSecrets/openai"</tspan></text>
+            <text class="dg-note" x="80" y="427">from Credential Manager</text>
+
+            <circle class="dg-dot" cx="56" cy="478" r="11"/>
+            <text class="dg-num" x="56" y="478" dy=".35em" text-anchor="middle">3</text>
+            <text x="80" y="474">start child process with</text>
+            <text class="dg-mono dg-note" x="80" y="493">OPENAI_API_KEY=&lt;secret&gt;</text>
+
+            <rect class="dg-box dg-box--child" x="28" y="526" width="300" height="60" rx="8"/>
+            <text class="dg-mono dg-strong" x="178" y="552" text-anchor="middle">python app.py</text>
+            <text class="dg-note" x="178" y="572" text-anchor="middle">only this process sees it</text>
+          </svg>
+
+          <figcaption>
+            <strong>Left:</strong> you, once per machine — <code>agent-secrets set openai</code> takes the value from a hidden prompt and stores it in Windows Credential Manager (per user, encrypted by Windows).
+            <strong>Right:</strong> you or your agent, any time — <code>agent-secrets run -- python app.py</code>:
+            <ol>
+              <li>reads <code>.agentsecrets.json</code> (<code>OPENAI_API_KEY -&gt; "openai"</code>);</li>
+              <li>reads <code>"AgentSecrets/openai"</code> from Credential Manager;</li>
+              <li>starts the child process with <code>OPENAI_API_KEY=&lt;secret&gt;</code> — only <code>python app.py</code> sees it.</li>
+            </ol>
+          </figcaption>
+        </figure>
+
+        <div class="cards">
+          <div class="card">
+            <h3><svg class="icon" aria-hidden="true"><use href="#i-vault"/></svg>Storage</h3>
+            <p>Secrets are <em>Generic Credentials</em> in Windows Credential Manager, named <code>AgentSecrets/&lt;name&gt;</code>. Windows encrypts them for your user account. Nothing is written to plaintext files.</p>
+          </div>
+          <div class="card">
+            <h3><svg class="icon" aria-hidden="true"><use href="#i-inject"/></svg>Injection</h3>
+            <p><code>agent-secrets run</code> reads the secrets it needs, starts your command as a child process, and places the values <strong>only in that child's environment block</strong>. Your shell, your user environment and the agent's session are never modified.</p>
+          </div>
+          <div class="card">
+            <h3><svg class="icon" aria-hidden="true"><use href="#i-pipe"/></svg>Transparent</h3>
+            <p>stdin, stdout, stderr and the exit code are the child's own, so interactive programs, pipes and CI-style checks behave exactly as without the wrapper.</p>
+          </div>
+          <div class="card">
+            <h3><svg class="icon" aria-hidden="true"><use href="#i-noexit"/></svg>No way out</h3>
+            <p>There is deliberately no <code>get</code>, <code>show</code> or <code>export</code> command.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ 3 ============================ -->
+      <section class="doc-section" id="3-installation" aria-labelledby="h-3">
+        <h2 id="h-3"><span class="sec-num" aria-hidden="true">3</span><span><span class="sr-only">3. </span>Installation</span><a class="anchor" href="#3-installation" aria-label="Link to section 3, Installation">#</a></h2>
+
+        <p>Requirements: Windows 10/11, x64 or ARM64. Nothing else: the program is self-contained (no .NET runtime needed).</p>
+
+        <p>In PowerShell (Windows PowerShell 5.1 or PowerShell 7):</p>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>irm https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.ps1 | iex</code></pre>
+        </div>
+
+        <p>The installer shows what it will do and asks once. Then it:</p>
+        <ol class="steps">
+          <li>downloads the latest release for your CPU and <strong>verifies its SHA-256 checksum</strong>;</li>
+          <li>installs <code>agent-secrets.exe</code> to <code>%LOCALAPPDATA%\AgentSecrets\bin</code>;</li>
+          <li>adds that directory to your <em>user</em> <code>PATH</code> (no Administrator rights; the system <code>PATH</code> is untouched) and to the current terminal;</li>
+          <li>installs the <a href="#11-installing-the-agent-skill">Agent Skill</a> for Claude Code and Codex.</li>
+        </ol>
+
+        <div class="callout callout--tip">
+          <svg class="icon" aria-hidden="true"><use href="#i-tip"/></svg>
+          <p class="callout-title">Tip: upgrading</p>
+          <div class="callout-body">
+            <p>Your secrets are never touched. <strong>Run the same command again to upgrade</strong> (this works even while an <code>agent-secrets run</code> is in progress).</p>
+          </div>
+        </div>
+
+        <h3 id="install-options">Installer options</h3>
+
+        <p>Options are passed with this form of the one-liner:</p>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>&amp; ([scriptblock]::Create((irm https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.ps1))) -Version v0.1.0 -Yes</code></pre>
+        </div>
+
+        <div class="table-wrap" role="region" aria-label="Installer options" tabindex="0">
+          <table class="table--kv table--stack">
+            <thead>
+              <tr><th scope="col">Option</th><th scope="col">Effect</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row"><code>-Version v0.1.0</code></th><td>Install a specific release instead of the latest.</td></tr>
+              <tr><th scope="row"><code>-Yes</code></th><td>Do not ask (unattended installs).</td></tr>
+              <tr><th scope="row"><code>-NoSkills</code></th><td>Do not install the Claude Code / Codex skill.</td></tr>
+              <tr><th scope="row"><code>-NoPath</code></th><td>Do not modify <code>PATH</code>.</td></tr>
+              <tr><th scope="row"><code>-InstallDir &lt;dir&gt;</code></th><td>Install somewhere other than <code>%LOCALAPPDATA%\AgentSecrets</code>.</td></tr>
+              <tr><th scope="row"><code>-Runtime win-arm64</code></th><td>Override CPU detection.</td></tr>
+              <tr><th scope="row"><code>-PackagePath &lt;zip&gt;</code></th><td>Install from a downloaded <code>agent-secrets-win-x64.zip</code> (offline).</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout--note">
+          <svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>
+          <p class="callout-title">Note: prefer to read before you run?</p>
+          <div class="callout-body">
+            <p>Download <a href="https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.ps1"><code>install.ps1</code></a>, inspect it, then run <code>powershell -ExecutionPolicy Bypass -File .\install.ps1</code>. To build from source instead, see <a href="#16-development">Development</a>.</p>
+          </div>
+        </div>
+
+        <p><strong>Open a new terminal</strong> (or restart the one your agent uses), then verify:</p>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>agent-secrets doctor</code></pre>
+        </div>
+      </section>
+
+      <!-- ============================ 4 ============================ -->
+      <section class="doc-section" id="4-add-your-first-secret" aria-labelledby="h-4">
+        <h2 id="h-4"><span class="sec-num" aria-hidden="true">4</span><span><span class="sr-only">4. </span>Add your first secret</span><a class="anchor" href="#4-add-your-first-secret" aria-label="Link to section 4, Add your first secret">#</a></h2>
+
+        <div class="code-group">
+          <div class="code code--cmd" data-lang="powershell">
+            <div class="code-head"><span class="code-lang">PowerShell</span></div>
+            <pre tabindex="0"><code>agent-secrets set openai</code></pre>
+          </div>
+          <div class="code code--out" data-lang="output">
+            <div class="code-head"><span class="code-lang">Output</span></div>
+            <pre tabindex="0"><code>Enter the secret for 'openai' (input is hidden; paste is fine), then press Enter:
+Secret 'openai' stored successfully.</code></pre>
+          </div>
+        </div>
+
+        <p>Paste or type the key — nothing is echoed, not even asterisks — and press Enter. Then the next one:</p>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>agent-secrets set elevenlabs</code></pre>
+        </div>
+
+        <div class="callout callout--security">
+          <svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>
+          <p class="callout-title">Security: never pass the value as an argument</p>
+          <div class="callout-body">
+            <p>The value is <strong>never accepted as a command-line argument</strong> (that would put it in your shell history and make it visible to other processes). <code>agent-secrets set openai &lt;value&gt;</code> is rejected.</p>
+          </div>
+        </div>
+
+        <p>Things worth knowing:</p>
+        <ul>
+          <li>Names are case-insensitive, 1–64 characters: letters, digits, <code>.</code>, <code>_</code>, <code>-</code>. Suggested convention: the lower-case provider name (<code>openai</code>, <code>elevenlabs</code>, <code>github</code>, <code>azure-openai</code>), with a suffix when you have several (<code>openai-work</code>).</li>
+          <li>Setting an existing name asks before overwriting (<code>--force</code> skips the question).</li>
+          <li><code>set</code> refuses to run without a real terminal. An agent that tries it gets an error telling it to ask <em>you</em>. For deliberate automation there is <code>--stdin</code> (for example <code>Get-Clipboard | agent-secrets set openai --stdin</code>).</li>
+          <li>Maximum length is 1280 characters (a Windows Credential Manager limit).</li>
+        </ul>
+      </section>
+
+      <!-- ============================ 5 ============================ -->
+      <section class="doc-section" id="5-list-check-and-remove-secrets" aria-labelledby="h-5">
+        <h2 id="h-5"><span class="sec-num" aria-hidden="true">5</span><span><span class="sr-only">5. </span>List, check and remove secrets</span><a class="anchor" href="#5-list-check-and-remove-secrets" aria-label="Link to section 5, List, check and remove secrets">#</a></h2>
+
+        <div class="code-group">
+          <div class="code code--cmd" data-lang="powershell">
+            <div class="code-head"><span class="code-lang">PowerShell</span></div>
+            <pre tabindex="0"><code>agent-secrets list</code></pre>
+          </div>
+          <div class="code code--out" data-lang="output">
+            <div class="code-head"><span class="code-lang">Output</span></div>
+            <pre tabindex="0"><code>elevenlabs
+openai</code></pre>
+          </div>
+        </div>
+
+        <p>Only names are ever shown.</p>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>agent-secrets exists openai        # exit code 0 = exists, 1 = missing
+agent-secrets exists openai -q     # same, prints nothing
+agent-secrets remove openai        # asks for confirmation
+agent-secrets remove openai --yes  # no question (scripts)</code></pre>
+        </div>
+
+        <div class="callout callout--tip">
+          <svg class="icon" aria-hidden="true"><use href="#i-tip"/></svg>
+          <p class="callout-title">Tip: rotating a key</p>
+          <div class="callout-body">
+            <p>To <strong>rotate</strong> a key, just run <code>agent-secrets set openai</code> again. Every project picks up the new value on its next run, because no project ever had a copy.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ 6 ============================ -->
+      <section class="doc-section" id="6-run-a-command-with-one-secret" aria-labelledby="h-6">
+        <h2 id="h-6"><span class="sec-num" aria-hidden="true">6</span><span><span class="sr-only">6. </span>Run a command with one secret</span><a class="anchor" href="#6-run-a-command-with-one-secret" aria-label="Link to section 6, Run a command with one secret">#</a></h2>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>agent-secrets run --env OPENAI_API_KEY=openai -- python demo.py</code></pre>
+        </div>
+
+        <p>Read it as: <em>run <code>python demo.py</code> with the environment variable <code>OPENAI_API_KEY</code> set to the secret named <code>openai</code>.</em></p>
+
+        <ul>
+          <li>Everything after <code>--</code> is the command and its arguments, passed through unchanged (spaces, quotes, <code>%</code>, <code>&amp;</code> and friends are handled correctly — also for <code>.cmd</code> shims like <code>npm</code>).</li>
+          <li>The exit code is the child's exit code.</li>
+          <li>Your shell is unchanged afterwards: <code>echo $env:OPENAI_API_KEY</code> still prints nothing.</li>
+        </ul>
+      </section>
+
+      <!-- ============================ 7 ============================ -->
+      <section class="doc-section" id="7-run-a-command-with-several-secrets" aria-labelledby="h-7">
+        <h2 id="h-7"><span class="sec-num" aria-hidden="true">7</span><span><span class="sr-only">7. </span>Run a command with several secrets</span><a class="anchor" href="#7-run-a-command-with-several-secrets" aria-label="Link to section 7, Run a command with several secrets">#</a></h2>
+
+        <p>Repeat <code>--env</code> (or <code>-e</code>):</p>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>agent-secrets run `
+  --env OPENAI_API_KEY=openai `
+  --env ELEVENLABS_API_KEY=elevenlabs `
+  -- python demo.py</code></pre>
+        </div>
+
+        <p>The same secret can feed different variable names in different projects (<code>--env AZURE_OPENAI_KEY=azure-openai</code>, <code>--env GH_TOKEN=github</code>, …).</p>
+      </section>
+
+      <!-- ============================ 8 ============================ -->
+      <section class="doc-section" id="8-project-manifest-agentsecretsjson" aria-labelledby="h-8">
+        <h2 id="h-8"><span class="sec-num" aria-hidden="true">8</span><span><span class="sr-only">8. </span>Project manifest: <code>.agentsecrets.json</code></span><a class="anchor" href="#8-project-manifest-agentsecretsjson" aria-label="Link to section 8, Project manifest">#</a></h2>
+
+        <p>Put the bindings in a file at the root of your project so nobody has to remember them:</p>
+
+        <div class="code code--cmd" data-lang="json">
+          <div class="code-head"><span class="code-lang">JSON</span></div>
+          <pre tabindex="0"><code>{
+  "version": 1,
+  "bindings": {
+    "OPENAI_API_KEY": "openai",
+    "ELEVENLABS_API_KEY": "elevenlabs"
+  }
+}</code></pre>
+        </div>
+
+        <p>Now the command is simply:</p>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>agent-secrets run -- python app.py</code></pre>
+        </div>
+
+        <div class="callout callout--tip">
+          <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+          <p class="callout-title">Safe to commit: names only</p>
+          <div class="callout-body">
+            <p><strong>This file contains only names and is safe to commit.</strong> It doubles as documentation of which credentials the project needs.</p>
+          </div>
+        </div>
+
+        <p>Check a project's requirements at any time:</p>
+
+        <div class="code-group">
+          <div class="code code--cmd" data-lang="powershell">
+            <div class="code-head"><span class="code-lang">PowerShell</span></div>
+            <pre tabindex="0"><code>agent-secrets status</code></pre>
+          </div>
+          <div class="code code--out" data-lang="output">
+            <div class="code-head"><span class="code-lang">Output</span></div>
+            <pre tabindex="0"><code>Project
+  [ok] Manifest: D:\code\my-app\.agentsecrets.json
+  [ok]   OPENAI_API_KEY &lt;- openai
+  [!!]   ELEVENLABS_API_KEY &lt;- elevenlabs   MISSING. Add it with: agent-secrets set elevenlabs</code></pre>
+          </div>
+        </div>
+
+        <h3 id="manifest-rules">Rules, kept deliberately simple</h3>
+
+        <div class="table-wrap" role="region" aria-label="Manifest rules" tabindex="0">
+          <table class="table--kv table--stack">
+            <thead>
+              <tr><th scope="col">Topic</th><th scope="col">Behaviour</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Lookup</th>
+                <td>The current directory first, then each parent directory <strong>up to the Git root</strong> (the first directory containing <code>.git</code>). The nearest manifest wins; manifests are not merged.</td>
+              </tr>
+              <tr>
+                <th scope="row">Outside a Git repository</th>
+                <td>Only the current directory is checked, so a stray file high up in your drive never applies by surprise.</td>
+              </tr>
+              <tr>
+                <th scope="row">Override</th>
+                <td><code>--env NAME=secret</code> on the command line overrides the manifest's binding for <code>NAME</code>; other manifest bindings still apply.</td>
+              </tr>
+              <tr>
+                <th scope="row">Other options</th>
+                <td><code>--manifest &lt;path&gt;</code> uses a specific file; <code>--no-manifest</code> ignores manifests.</td>
+              </tr>
+              <tr>
+                <th scope="row">Validation</th>
+                <td><code>version</code> must be <code>1</code>; <code>bindings</code> maps valid environment variable names to valid secret names; unknown properties are errors (<code>$schema</code> is allowed). Comments and trailing commas are tolerated.</td>
+              </tr>
+              <tr>
+                <th scope="row">Missing secret</th>
+                <td><code>run</code> stops <em>before</em> starting your command, exits with 125 and tells you exactly which <code>agent-secrets set &lt;name&gt;</code> to run.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>If a secret is missing you will see:</p>
+
+        <div class="code code--out" data-lang="output">
+          <div class="code-head"><span class="code-lang">Output</span></div>
+          <pre tabindex="0"><code>Required secret 'openai' was not found (needed for OPENAI_API_KEY).
+
+Add it with:
+
+    agent-secrets set openai</code></pre>
+        </div>
+
+        <p>A ready-made demo lives in <a href="examples/README.md"><code>examples/</code></a>.</p>
+      </section>
+
+      <!-- ============================ 9 ============================ -->
+      <section class="doc-section" id="9-using-agentsecrets-with-codex" aria-labelledby="h-9">
+        <h2 id="h-9"><span class="sec-num" aria-hidden="true">9</span><span><span class="sr-only">9. </span>Using AgentSecrets with Codex</span><a class="anchor" href="#9-using-agentsecrets-with-codex" aria-label="Link to section 9, Using AgentSecrets with Codex">#</a></h2>
+
+        <ol class="steps">
+          <li>Install the skill (the installer offers this; see <a href="#11-installing-the-agent-skill">section 11</a>). Codex discovers it from <code>~/.agents/skills/agent-secrets/</code> and activates it on its own when a task involves credentials. You can also invoke it explicitly with <code>$agent-secrets</code>.</li>
+          <li>Alternatively — or additionally — paste <a href="integrations/AGENTS.agent-secrets.md"><code>integrations/AGENTS.agent-secrets.md</code></a> into your global <code>~/.codex/AGENTS.md</code> or a project's <code>AGENTS.md</code>.</li>
+        </ol>
+
+        <p>Then the daily flow is:</p>
+
+        <div class="code code--cmd" data-lang="text">
+          <div class="code-head"><span class="code-lang">Text</span></div>
+          <pre tabindex="0"><code>You:    Run the example using my OpenAI credentials.
+Codex:  agent-secrets exists openai                       → exit 0
+        agent-secrets run -- python app.py                → your program's output</code></pre>
+        </div>
+
+        <p>And when a secret is not there yet:</p>
+
+        <div class="code code--cmd" data-lang="text">
+          <div class="code-head"><span class="code-lang">Text</span></div>
+          <pre tabindex="0"><code>Codex:  The secret 'elevenlabs' is not stored on this machine. Please run this in your own
+        terminal, then tell me to continue:
+
+            agent-secrets set elevenlabs</code></pre>
+        </div>
+
+        <div class="callout callout--note">
+          <svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>
+          <p class="callout-title">Sandbox note</p>
+          <div class="callout-body">
+            <p>Codex runs commands in a sandbox. If <code>agent-secrets run</code> cannot reach Credential Manager or the network from inside it, approve the command when Codex asks to run it outside the sandbox.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ 10 ============================ -->
+      <section class="doc-section" id="10-using-agentsecrets-with-claude-code" aria-labelledby="h-10">
+        <h2 id="h-10"><span class="sec-num" aria-hidden="true">10</span><span><span class="sr-only">10. </span>Using AgentSecrets with Claude Code</span><a class="anchor" href="#10-using-agentsecrets-with-claude-code" aria-label="Link to section 10, Using AgentSecrets with Claude Code">#</a></h2>
+
+        <ol class="steps">
+          <li>Install the skill (the installer offers this). Claude Code loads it from <code>~/.claude/skills/agent-secrets/</code> and uses it automatically when credentials come up; <code>/agent-secrets</code> invokes it explicitly.</li>
+          <li>Alternatively — or additionally — paste <a href="integrations/CLAUDE.agent-secrets.md"><code>integrations/CLAUDE.agent-secrets.md</code></a> into <code>~/.claude/CLAUDE.md</code> or a project's <code>CLAUDE.md</code>.</li>
+        </ol>
+
+        <div class="callout callout--warning">
+          <svg class="icon" aria-hidden="true"><use href="#i-warning"/></svg>
+          <p class="callout-title">Warning: think twice before always allowing <code>run</code></p>
+          <div class="callout-body">
+            <p>Optional: use <code>/permissions</code> in Claude Code to always allow the read-only commands (<code>agent-secrets exists</code>, <code>list</code>, <code>status</code>). Think twice before always allowing <code>agent-secrets run</code>: that lets the agent run <em>any</em> command with your secrets without asking. Keeping that one prompt is a cheap safeguard.</p>
+          </div>
+        </div>
+
+        <div class="callout callout--security">
+          <svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>
+          <p class="callout-title">Run <code>set</code> in a separate terminal</p>
+          <div class="callout-body">
+            <p>Run <code>agent-secrets set &lt;name&gt;</code> in a <strong>separate terminal window</strong>, not through the agent and not with Claude Code's <code>!</code> prefix: the hidden prompt needs a real terminal.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ 11 ============================ -->
+      <section class="doc-section" id="11-installing-the-agent-skill" aria-labelledby="h-11">
+        <h2 id="h-11"><span class="sec-num" aria-hidden="true">11</span><span><span class="sr-only">11. </span>Installing the Agent Skill</span><a class="anchor" href="#11-installing-the-agent-skill" aria-label="Link to section 11, Installing the Agent Skill">#</a></h2>
+
+        <p>The skill at <a href="skill/agent-secrets/SKILL.md"><code>skill/agent-secrets/SKILL.md</code></a> is what makes the workflow automatic: it teaches an agent <em>when</em> credentials are involved, to use <code>agent-secrets run</code>, to create <code>.agentsecrets.json</code>, to ask <strong>you</strong> to run <code>agent-secrets set</code> when something is missing, and never to read, print, write or hunt for secret values.</p>
+
+        <div class="table-wrap" role="region" aria-label="Skill locations" tabindex="0">
+          <table class="table--paths">
+            <thead>
+              <tr><th scope="col">Agent</th><th scope="col">Global (all projects)</th><th scope="col">Per project (commit it for your team)</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Claude Code</th>
+                <td><code>~/.claude/skills/agent-secrets/SKILL.md</code></td>
+                <td><code>.claude/skills/agent-secrets/SKILL.md</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Codex</th>
+                <td><code>~/.agents/skills/agent-secrets/SKILL.md</code></td>
+                <td><code>.agents/skills/agent-secrets/SKILL.md</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>(<code>~</code> is <code>C:\Users\&lt;you&gt;</code>. Locations verified against the official Claude Code and Codex documentation in September 2026; if a product moves them, copy the folder to the new place.)</p>
+
+        <h3 id="skill-automatic">Automatic</h3>
+
+        <p>The <a href="#3-installation">installer</a> installs the skill for both agents (unless you pass <code>-NoSkills</code>) and refreshes it on every upgrade.</p>
+
+        <h3 id="skill-manual">Manual, from a clone of this repository</h3>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code># Claude Code
+New-Item -ItemType Directory -Force "$HOME\.claude\skills\agent-secrets" | Out-Null
+Copy-Item .\skill\agent-secrets\* "$HOME\.claude\skills\agent-secrets\" -Recurse -Force
+
+# Codex
+New-Item -ItemType Directory -Force "$HOME\.agents\skills\agent-secrets" | Out-Null
+Copy-Item .\skill\agent-secrets\* "$HOME\.agents\skills\agent-secrets\" -Recurse -Force</code></pre>
+        </div>
+
+        <p>Restart the agent afterwards. <code>agent-secrets doctor</code> reports whether both copies are in place.</p>
+
+        <p>Prefer plain instruction files? Use the snippets in <a href="integrations/"><code>integrations/</code></a> instead (sections <a href="#9-using-agentsecrets-with-codex">9</a> and <a href="#10-using-agentsecrets-with-claude-code">10</a>). Skill and snippet can be combined.</p>
+      </section>
+
+      <!-- ============================ 12 ============================ -->
+      <section class="doc-section" id="12-security-model" aria-labelledby="h-12">
+        <h2 id="h-12"><span class="sec-num" aria-hidden="true">12</span><span><span class="sr-only">12. </span>Security model</span><a class="anchor" href="#12-security-model" aria-label="Link to section 12, Security model">#</a></h2>
+
+        <div class="threat" role="note" aria-label="Threat model">
+          <div class="threat-head">
+            <svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>
+            <span>Threat model — read this first</span>
+          </div>
+          <div class="threat-grid">
+            <div class="threat-cell threat-cell--yes">
+              <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+              <p><span class="threat-label">Protects against</span>AgentSecrets protects against accidental exposure and secret proliferation.</p>
+            </div>
+            <div class="threat-cell threat-cell--no">
+              <svg class="icon" aria-hidden="true"><use href="#i-cross"/></svg>
+              <p><span class="threat-label">Does not protect against</span>It does <em>not</em> protect against malicious software running as your Windows user.</p>
+            </div>
+          </div>
+        </div>
+
+        <p class="list-title list-title--yes"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>What it gives you</p>
+        <ul>
+          <li>Secrets are not in repositories, <code>.env</code> files, prompts, agent transcripts, shell history or persistent environment variables.</li>
+          <li>One copy per machine, encrypted at rest by Windows for your account; rotate in one place.</li>
+          <li>The tool never prints a secret: not in output, errors, diagnostics or logs. <code>exists</code>, <code>list</code>, <code>status</code> and <code>doctor</code> do not even read the values.</li>
+          <li>Text that is rejected as a name is never echoed back, in case a key was pasted in the wrong place.</li>
+        </ul>
+
+        <p class="list-title list-title--no"><svg class="icon" aria-hidden="true"><use href="#i-cross"/></svg>What it cannot do</p>
+        <ul>
+          <li><strong>Same-user malware.</strong> Any program running as you can ask Credential Manager for your credentials, exactly like AgentSecrets does. That is how Windows works.</li>
+          <li><strong>A child process that misbehaves.</strong> The command you run receives the real key. If it prints its environment, logs the key or sends it somewhere, AgentSecrets cannot stop it. Only run code you trust — and remember a <code>.agentsecrets.json</code> in an untrusted repository decides which of your secrets that repository's code receives.</li>
+          <li><strong>An agent that ignores its instructions.</strong> An agent could write a program that prints the variable. The skill forbids it, the <code>run</code> permission prompt lets you see each command, and the absence of a <code>get</code> command removes the easy path — but this is guidance, not a sandbox.</li>
+        </ul>
+
+        <div class="callout callout--warning">
+          <svg class="icon" aria-hidden="true"><use href="#i-warning"/></svg>
+          <p class="callout-title">Warning: untrusted repositories</p>
+          <div class="callout-body">
+            <p>A <code>.agentsecrets.json</code> in an untrusted repository decides which of your secrets that repository's code receives. Only run code you trust.</p>
+          </div>
+        </div>
+
+        <p>Details, including what to do when a key leaks: <a href="SECURITY.md">SECURITY.md</a>.</p>
+      </section>
+
+      <!-- ============================ 13 ============================ -->
+      <section class="doc-section" id="13-troubleshooting" aria-labelledby="h-13">
+        <h2 id="h-13"><span class="sec-num" aria-hidden="true">13</span><span><span class="sr-only">13. </span>Troubleshooting</span><a class="anchor" href="#13-troubleshooting" aria-label="Link to section 13, Troubleshooting">#</a></h2>
+
+        <p>Start with:</p>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>agent-secrets doctor</code></pre>
+        </div>
+
+        <div class="table-wrap" role="region" aria-label="Troubleshooting" tabindex="0">
+          <table class="table--kv table--stack">
+            <thead>
+              <tr><th scope="col">Symptom</th><th scope="col">Cause and fix</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row"><code>agent-secrets</code> is not recognized</th>
+                <td>Open a <strong>new</strong> terminal after installing (PATH is read at terminal start). Still failing: run the <a href="#3-installation">install command</a> again, or check that <code>%LOCALAPPDATA%\AgentSecrets\bin</code> is on your user PATH.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>Required secret '…' was not found</code></th>
+                <td>Run the <code>agent-secrets set &lt;name&gt;</code> command shown. Check spelling with <code>agent-secrets list</code>.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>Nothing to inject</code></th>
+                <td>No manifest was found from the current directory and no <code>--env</code> was given. <code>cd</code> into the project, or pass <code>--env</code> / <code>--manifest &lt;path&gt;</code>.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>Command '…' was not found</code> (exit 127)</th>
+                <td>The program is not on <code>PATH</code>. Programs in the current directory need <code>.\name</code> — the current directory is deliberately not searched, so a repository cannot shadow <code>python</code> or <code>git</code>.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>… is not an executable</code> (exit 126)</th>
+                <td>Scripts need their interpreter: <code>-- python x.py</code>, <code>-- node x.js</code>, <code>-- pwsh -File x.ps1</code>. Shell built-ins and pipelines: <code>-- cmd /c "…"</code> or <code>-- pwsh -Command "…"</code>.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>'set' must be run by a person in an interactive terminal</code></th>
+                <td>Working as intended: run it yourself in a normal terminal window.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>Invalid manifest …</code></th>
+                <td>The message names the file and the problem. Remember: values in <code>bindings</code> are secret <em>names</em>.</td>
+              </tr>
+              <tr>
+                <th scope="row">Win32 error 1312</th>
+                <td>Credential Manager is unavailable in this logon session (some SSH sessions, services, scheduled tasks). Use an interactive session.</td>
+              </tr>
+              <tr>
+                <th scope="row">The program says the key is invalid</th>
+                <td>The stored value is wrong (partial paste?). Run <code>agent-secrets set &lt;name&gt;</code> again. You can also inspect the entry <code>AgentSecrets/&lt;name&gt;</code> in <em>Control Panel → Credential Manager → Windows Credentials</em>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="exit-codes">Exit codes of <code>run</code></h3>
+
+        <p>The child's own code, or <strong>125</strong> (could not run: missing secret, bad manifest, storage error), <strong>126</strong> (not executable), <strong>127</strong> (not found), <strong>2</strong> (usage error).</p>
+
+        <div class="table-wrap" role="region" aria-label="Exit codes of run" tabindex="0">
+          <table class="table--codes">
+            <thead>
+              <tr><th scope="col">Exit code</th><th scope="col">Meaning</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">child's own code</th><td>The command ran; the exit code is the child's exit code.</td></tr>
+              <tr><th scope="row"><code>125</code></th><td>Could not run: missing secret, bad manifest, storage error.</td></tr>
+              <tr><th scope="row"><code>126</code></th><td>Not executable.</td></tr>
+              <tr><th scope="row"><code>127</code></th><td>Not found.</td></tr>
+              <tr><th scope="row"><code>2</code></th><td>Usage error.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================ 14 ============================ -->
+      <section class="doc-section" id="14-uninstalling" aria-labelledby="h-14">
+        <h2 id="h-14"><span class="sec-num" aria-hidden="true">14</span><span><span class="sr-only">14. </span>Uninstalling</span><a class="anchor" href="#14-uninstalling" aria-label="Link to section 14, Uninstalling">#</a></h2>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>irm https://github.com/dev-foundations/agent-secrets/releases/latest/download/uninstall.ps1 | iex</code></pre>
+        </div>
+
+        <p>This removes the program, its <code>PATH</code> entry and the Claude Code / Codex skills, and <strong>keeps your secrets</strong>. Kept secrets remain visible in Credential Manager as <code>AgentSecrets/&lt;name&gt;</code> and are picked up again if you reinstall.</p>
+
+        <p>To also delete every AgentSecrets secret:</p>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>&amp; ([scriptblock]::Create((irm https://github.com/dev-foundations/agent-secrets/releases/latest/download/uninstall.ps1))) -RemoveSecrets</code></pre>
+        </div>
+
+        <p>The installer also leaves a copy at <code>%LOCALAPPDATA%\AgentSecrets\uninstall.ps1</code> (options: <code>-RemoveSecrets</code>, <code>-KeepSkills</code>, <code>-Yes</code>).</p>
+
+        <div class="callout callout--note">
+          <svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>
+          <p class="callout-title">Note: uninstalling while a run is in progress</p>
+          <div class="callout-body">
+            <p>If <code>agent-secrets</code> is still running, for example a long <code>agent-secrets run</code>, the uninstaller stops without changing anything; run it again once it has finished.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ 15 ============================ -->
+      <section class="doc-section" id="15-command-reference" aria-labelledby="h-15">
+        <h2 id="h-15"><span class="sec-num" aria-hidden="true">15</span><span><span class="sr-only">15. </span>Command reference</span><a class="anchor" href="#15-command-reference" aria-label="Link to section 15, Command reference">#</a></h2>
+
+        <div class="code code--cmd" data-lang="text">
+          <div class="code-head"><span class="code-lang">Text</span></div>
+          <pre tabindex="0"><code>agent-secrets set &lt;name&gt; [--force] [--stdin]     Store a secret (prompted, never echoed)
+agent-secrets list                               List secret names
+agent-secrets exists &lt;name&gt; [--quiet]            Exit 0 if it exists, 1 if not
+agent-secrets remove &lt;name&gt; [--yes]              Delete a secret
+agent-secrets run [--env NAME=secret]... [--manifest &lt;path&gt; | --no-manifest] -- &lt;command&gt; [args...]
+agent-secrets status                             Does this project have the secrets it needs?
+agent-secrets doctor                             Installation, storage, project and skill checks
+agent-secrets help | --version</code></pre>
+        </div>
+      </section>
+
+      <!-- ============================ 16 ============================ -->
+      <section class="doc-section" id="16-development" aria-labelledby="h-16">
+        <h2 id="h-16"><span class="sec-num" aria-hidden="true">16</span><span><span class="sr-only">16. </span>Development</span><a class="anchor" href="#16-development" aria-label="Link to section 16, Development">#</a></h2>
+
+        <p>Requires the <a href="https://dotnet.microsoft.com/download">.NET 10 SDK</a>.</p>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>git clone https://github.com/dev-foundations/agent-secrets.git
+cd agent-secrets
+dotnet build AgentSecrets.slnx
+dotnet test  AgentSecrets.slnx
+.\scripts\install.ps1 -FromSource     # build the release package locally and install it</code></pre>
+        </div>
+
+        <h3 id="repo-layout">Repository layout</h3>
+
+        <div class="table-wrap" role="region" aria-label="Repository layout" tabindex="0">
+          <table class="table--kv table--stack">
+            <thead>
+              <tr><th scope="col">Path</th><th scope="col">Contents</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row"><code>src/AgentSecrets.Core</code></th><td>ISecretStore + WindowsCredentialStore, manifest, bindings, command resolution, child process</td></tr>
+              <tr><th scope="row"><code>src/AgentSecrets.Cli</code></th><td>the agent-secrets executable (argument parsing, commands, diagnostics)</td></tr>
+              <tr><th scope="row"><code>tests/AgentSecrets.Tests</code></th><td>unit tests (in-memory store) + integration tests (real Credential Manager, fake values)</td></tr>
+              <tr><th scope="row"><code>tests/AgentSecrets.TestProbe</code></th><td>child process used by tests; reports <em>whether</em> a variable is set, never its value</td></tr>
+              <tr><th scope="row"><code>skill/</code> <code>integrations/</code></th><td>agent skill and AGENTS.md / CLAUDE.md snippets</td></tr>
+              <tr><th scope="row"><code>examples/</code></th><td>demo project</td></tr>
+              <tr><th scope="row"><code>scripts/</code></th><td>install.ps1, uninstall.ps1, package.ps1 (builds the release zip)</td></tr>
+              <tr><th scope="row"><code>.github/workflows/</code></th><td>ci.yml (build, test, package, install smoke test), release.yml</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="releasing">Releasing</h3>
+
+        <p>Bump <code>&lt;Version&gt;</code> in <code>Directory.Build.props</code>, then push a tag:</p>
+
+        <div class="code code--cmd" data-lang="powershell">
+          <div class="code-head"><span class="code-lang">PowerShell</span></div>
+          <pre tabindex="0"><code>git tag v0.2.0
+git push origin v0.2.0</code></pre>
+        </div>
+
+        <p>The release workflow tests, builds <code>agent-secrets-win-x64.zip</code> and <code>agent-secrets-win-arm64.zip</code>, writes <code>SHA256SUMS.txt</code>, and publishes them together with <code>install.ps1</code> and <code>uninstall.ps1</code> as a GitHub release. The one-line installer always fetches the latest release.</p>
+
+        <h3 id="storage-backends">Storage backends and tests</h3>
+
+        <p>Storage sits behind the small <code>ISecretStore</code> interface, so another backend (macOS Keychain, Linux Secret Service, 1Password, Azure Key Vault, …) can be added without touching the commands. Only Windows Credential Manager is implemented. The integration tests use unique throw-away names and their own Credential Manager prefix, use fake values only, and clean up after themselves.</p>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p>AgentSecrets documentation — browser version of <a href="README.md">README.md</a>. Security details: <a href="SECURITY.md">SECURITY.md</a>. Source: <a href="https://github.com/dev-foundations/agent-secrets">github.com/dev-foundations/agent-secrets</a>. <a href="LICENSE">MIT License</a>.</p>
+    <p><a href="#top">Back to top</a></p>
+  </div>
+</footer>
+
+<a class="btn to-top" id="to-top" href="#top" aria-label="Back to top">
+  <svg class="icon" aria-hidden="true"><use href="#i-up"/></svg>
+</a>
+
+<div class="sr-only" id="live" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var doc = document;
+  var root = doc.documentElement;
+  var STORAGE_KEY = 'agentsecrets-docs-theme';
+
+  /* ------------------------------------------------------------------ *
+   * Theme toggle
+   * ------------------------------------------------------------------ */
+  var themeBtn = doc.getElementById('theme-toggle');
+  var darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+  function effectiveTheme() {
+    var t = root.getAttribute('data-theme');
+    if (t === 'light' || t === 'dark') { return t; }
+    return darkQuery && darkQuery.matches ? 'dark' : 'light';
+  }
+
+  function syncThemeButton() {
+    if (!themeBtn) { return; }
+    var next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+    themeBtn.setAttribute('aria-label', 'Switch to ' + next + ' theme');
+    themeBtn.setAttribute('title', 'Switch to ' + next + ' theme');
+  }
+
+  if (themeBtn) {
+    themeBtn.addEventListener('click', function () {
+      var next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem(STORAGE_KEY, next); } catch (e) { /* not persisted */ }
+      syncThemeButton();
+    });
+    if (darkQuery) {
+      var onSchemeChange = function () { syncThemeButton(); };
+      if (darkQuery.addEventListener) { darkQuery.addEventListener('change', onSchemeChange); }
+      else if (darkQuery.addListener) { darkQuery.addListener(onSchemeChange); }
+    }
+    syncThemeButton();
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Tiny highlighter. Works on the raw text (textContent) of each block
+   * and escapes every piece exactly once, so placeholders like <name>
+   * can never be corrupted or double-escaped.
+   * ------------------------------------------------------------------ */
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function tok(cls, s) {
+    return '<span class="tok-' + cls + '">' + esc(s) + '</span>';
+  }
+  function isSpaceOrEdge(ch) {
+    return ch === undefined || ch === '' || /\s/.test(ch);
+  }
+
+  /* handler returns an HTML string, or null to reject the match */
+  function tokenize(src, re, handler) {
+    var out = '';
+    var last = 0;
+    var m;
+    re.lastIndex = 0;
+    while ((m = re.exec(src)) !== null) {
+      if (m[0] === '') { re.lastIndex += 1; continue; }
+      var html = handler(m, src);
+      if (html === null) { re.lastIndex = m.index + 1; continue; }
+      out += esc(src.slice(last, m.index)) + html;
+      last = m.index + m[0].length;
+      re.lastIndex = last;
+    }
+    return out + esc(src.slice(last));
+  }
+
+  /* 1 comment | 2 string | 3 agent-secrets (4 spaces, 5 subcommand) | 6 cmdlet
+     | 7 flag | 8 "--" separator | 9 backtick continuation | 10 <placeholder> */
+  var SHELL_RE = /(#[^\n]*)|("[^"\n]*"|'[^'\n]*')|(agent-secrets)(?:( +)(set|list|exists|remove|run|status|doctor|help)(?![\w-]))?|([A-Z][A-Za-z]+-[A-Z][A-Za-z]+)|(--?[A-Za-z][\w-]*)|(--)|(`)|(<[A-Za-z][^<>\n]*>)/g;
+
+  function shellHandler(full) {
+    return function (m, src) {
+      var prev = m.index > 0 ? src.charAt(m.index - 1) : '';
+      var next = src.charAt(m.index + m[0].length);
+      if (m[1] !== undefined) {
+        if (!full || !isSpaceOrEdge(prev)) { return null; }
+        return tok('comment', m[1]);
+      }
+      if (m[2] !== undefined) {
+        if (!full) { return null; }
+        return tok('string', m[2]);
+      }
+      if (m[3] !== undefined) {
+        if (!isSpaceOrEdge(prev)) { return null; }
+        if (m[5] === undefined && !isSpaceOrEdge(next)) { return null; }
+        /* a directory name, as in "cd agent-secrets", is not the command */
+        if (/(?:^|\s)cd\s+$/.test(src.slice(src.lastIndexOf('\n', m.index - 1) + 1, m.index))) { return null; }
+        var html = tok('cmd', m[3]);
+        if (m[5] !== undefined) { html += esc(m[4]) + tok('sub', m[5]); }
+        return html;
+      }
+      if (m[6] !== undefined) {
+        if (!full || !isSpaceOrEdge(prev)) { return null; }
+        return tok('cmdlet', m[6]);
+      }
+      if (m[7] !== undefined) {
+        if (!(isSpaceOrEdge(prev) || prev === '[' || prev === '(')) { return null; }
+        return tok('flag', m[7]);
+      }
+      if (m[8] !== undefined) {
+        if (!isSpaceOrEdge(prev) || !isSpaceOrEdge(next)) { return null; }
+        return tok('sep', m[8]);
+      }
+      if (m[9] !== undefined) {
+        if (!full) { return null; }
+        return tok('sep', m[9]);
+      }
+      if (m[10] !== undefined) { return tok('ph', m[10]); }
+      return null;
+    };
+  }
+
+  var JSON_RE = /("(?:[^"\\\n]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?)|\b(true|false|null)\b/g;
+  function jsonHandler(m) {
+    if (m[1] !== undefined) {
+      return m[2] !== undefined ? tok('key', m[1]) + esc(m[2]) : tok('string', m[1]);
+    }
+    if (m[3] !== undefined) { return tok('number', m[3]); }
+    if (m[4] !== undefined) { return tok('const', m[4]); }
+    return null;
+  }
+
+  var OUTPUT_RE = /(\[ok\])|(\[!!\])/g;
+  function outputHandler(m) {
+    return m[1] !== undefined ? tok('ok', m[1]) : tok('bad', m[2]);
+  }
+
+  function highlight(lang, raw) {
+    if (lang === 'powershell') { return tokenize(raw, SHELL_RE, shellHandler(true)); }
+    if (lang === 'text') { return tokenize(raw, SHELL_RE, shellHandler(false)); }
+    if (lang === 'json') { return tokenize(raw, JSON_RE, jsonHandler); }
+    if (lang === 'output') { return tokenize(raw, OUTPUT_RE, outputHandler); }
+    return esc(raw);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Copy to clipboard
+   * ------------------------------------------------------------------ */
+  var live = doc.getElementById('live');
+
+  function legacyCopy(text) {
+    return new Promise(function (resolve, reject) {
+      var ta = doc.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.setAttribute('aria-hidden', 'true');
+      ta.style.position = 'fixed';
+      ta.style.top = '0';
+      ta.style.left = '-9999px';
+      ta.style.opacity = '0';
+      doc.body.appendChild(ta);
+      var ok = false;
+      try {
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        ok = doc.execCommand('copy');
+      } catch (e) {
+        ok = false;
+      }
+      doc.body.removeChild(ta);
+      if (ok) { resolve(); } else { reject(new Error('copy failed')); }
+    });
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      return navigator.clipboard.writeText(text).catch(function () { return legacyCopy(text); });
+    }
+    return legacyCopy(text);
+  }
+
+  function selectNode(node) {
+    try {
+      var range = doc.createRange();
+      range.selectNodeContents(node);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) { /* ignore */ }
+  }
+
+  function setupCodeBlock(block) {
+    var code = block.querySelector('pre > code');
+    var pre = block.querySelector('pre');
+    var head = block.querySelector('.code-head');
+    var label = block.querySelector('.code-lang');
+    if (!code || !pre || !head) { return; }
+
+    var lang = block.getAttribute('data-lang') || '';
+    var labelText = label ? label.textContent : 'Code';
+    /* the raw text is captured once, before any markup is added */
+    var raw = code.textContent.replace(/\s+$/, '');
+
+    pre.setAttribute('role', 'group');
+    pre.setAttribute('aria-label', labelText + ' block');
+
+    try {
+      var html = highlight(lang, raw);
+      code.innerHTML = html;
+      if (code.textContent !== raw) { code.textContent = raw; } /* safety net */
+    } catch (e) {
+      code.textContent = raw;
+    }
+
+    var btn = doc.createElement('button');
+    btn.type = 'button';
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.setAttribute('aria-label', 'Copy ' + labelText + ' block to clipboard');
+    var timer = null;
+
+    btn.addEventListener('click', function () {
+      copyText(raw).then(function () {
+        btn.textContent = 'Copied';
+        btn.classList.remove('is-failed');
+        btn.classList.add('is-copied');
+        if (live) { live.textContent = 'Copied to clipboard'; }
+      }, function () {
+        btn.textContent = 'Press Ctrl+C';
+        btn.classList.remove('is-copied');
+        btn.classList.add('is-failed');
+        selectNode(code);
+        if (live) { live.textContent = 'Copy failed. The text is selected; press Ctrl+C.'; }
+      }).then(function () {
+        if (timer) { window.clearTimeout(timer); }
+        timer = window.setTimeout(function () {
+          btn.textContent = 'Copy';
+          btn.classList.remove('is-copied', 'is-failed');
+          if (live) { live.textContent = ''; }
+        }, 1800);
+      });
+    });
+
+    head.appendChild(btn);
+  }
+
+  var blocks = doc.querySelectorAll('.code');
+  for (var b = 0; b < blocks.length; b += 1) { setupCodeBlock(blocks[b]); }
+
+  /* ------------------------------------------------------------------ *
+   * Table of contents: mobile drawer
+   * ------------------------------------------------------------------ */
+  var toc = doc.getElementById('toc');
+  var tocToggle = doc.getElementById('toc-toggle');
+  var backdrop = doc.getElementById('toc-backdrop');
+
+  function setToc(open) {
+    if (!toc || !tocToggle) { return; }
+    toc.classList.toggle('is-open', open);
+    if (backdrop) { backdrop.classList.toggle('is-open', open); }
+    tocToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  if (toc && tocToggle) {
+    tocToggle.addEventListener('click', function () {
+      setToc(!toc.classList.contains('is-open'));
+    });
+    if (backdrop) { backdrop.addEventListener('click', function () { setToc(false); }); }
+    doc.addEventListener('keydown', function (ev) {
+      if ((ev.key === 'Escape' || ev.key === 'Esc') && toc.classList.contains('is-open')) {
+        setToc(false);
+        tocToggle.focus();
+      }
+    });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Scroll spy
+   * ------------------------------------------------------------------ */
+  var tocLinks = toc ? toc.querySelectorAll('.toc-list a[href^="#"]') : [];
+  var linkById = {};
+  for (var l = 0; l < tocLinks.length; l += 1) {
+    linkById[tocLinks[l].getAttribute('href').slice(1)] = tocLinks[l];
+  }
+  var activeId = null;
+  var lockUntil = 0;
+
+  function setActive(id) {
+    if (id === activeId) { return; }
+    if (activeId && linkById[activeId]) { linkById[activeId].removeAttribute('aria-current'); }
+    activeId = id;
+    var link = id ? linkById[id] : null;
+    if (!link) { return; }
+    link.setAttribute('aria-current', 'true');
+    /* keep the active entry visible inside the (desktop) sticky sidebar */
+    if (toc && toc.scrollHeight > toc.clientHeight + 1) {
+      var top = link.offsetTop;
+      var bottom = top + link.offsetHeight;
+      if (top < toc.scrollTop + 8) { toc.scrollTop = Math.max(0, top - 48); }
+      else if (bottom > toc.scrollTop + toc.clientHeight - 8) { toc.scrollTop = bottom - toc.clientHeight + 48; }
+    }
+  }
+
+  function activateFromHash() {
+    var id = decodeURIComponent((window.location.hash || '').slice(1));
+    if (id && linkById[id]) {
+      lockUntil = Date.now() + 1000;
+      setActive(id);
+    }
+  }
+
+  for (var k = 0; k < tocLinks.length; k += 1) {
+    tocLinks[k].addEventListener('click', function () {
+      var id = this.getAttribute('href').slice(1);
+      lockUntil = Date.now() + 1000;
+      setActive(id);
+      setToc(false);
+    });
+  }
+  window.addEventListener('hashchange', activateFromHash);
+
+  var sections = doc.querySelectorAll('main section[id]');
+  if ('IntersectionObserver' in window && sections.length) {
+    var inBand = {};
+    var spy = new IntersectionObserver(function (entries) {
+      for (var i = 0; i < entries.length; i += 1) {
+        inBand[entries[i].target.id] = entries[i].isIntersecting;
+      }
+      if (Date.now() < lockUntil) { return; }
+      var current = null;
+      for (var j = 0; j < sections.length; j += 1) {
+        if (inBand[sections[j].id]) { current = sections[j].id; }
+      }
+      if (current !== null) { setActive(current === 'top' ? null : current); }
+    }, { rootMargin: '-64px 0px -55% 0px', threshold: 0 });
+    for (var s = 0; s < sections.length; s += 1) { spy.observe(sections[s]); }
+  }
+  activateFromHash();
+
+  /* ------------------------------------------------------------------ *
+   * Back to top
+   * ------------------------------------------------------------------ */
+  var toTop = doc.getElementById('to-top');
+  var hero = doc.getElementById('top');
+  if (toTop && hero && 'IntersectionObserver' in window) {
+    new IntersectionObserver(function (entries) {
+      toTop.classList.toggle('is-visible', !entries[entries.length - 1].isIntersecting);
+    }, { threshold: 0 }).observe(hero);
+  }
+})();
+</script>
+</body>
+</html>

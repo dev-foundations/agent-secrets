@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Version>0.1.0</Version>
+    <Authors>dev-foundations</Authors>
+    <Product>AgentSecrets</Product>
+    <RepositoryUrl>https://github.com/dev-foundations/agent-secrets</RepositoryUrl>
+  </PropertyGroup>
+</Project>
