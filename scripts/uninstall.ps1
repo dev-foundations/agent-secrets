@@ -37,7 +37,12 @@ param(
     if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA 'AgentSecrets' }
     $binDir = Join-Path $InstallDir 'bin'
     $exe = Join-Path $binDir 'agent-secrets.exe'
-    $skillDirs = @((Join-Path $HOME '.claude\skills\agent-secrets'), (Join-Path $HOME '.agents\skills\agent-secrets'))
+    $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
+    $skillDirs = @(
+        (Join-Path $HOME '.claude\skills\agent-secrets'),
+        (Join-Path $codexHome 'skills\agent-secrets'),
+        (Join-Path $HOME '.agents\skills\agent-secrets')   # location used by older installs
+    )
 
     function Test-SamePath([string]$A, [string]$B) {
         $left = [Environment]::ExpandEnvironmentVariables($A).Trim().TrimEnd('\')

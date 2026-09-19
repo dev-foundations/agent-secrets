@@ -100,7 +100,8 @@ The installer shows what it will do and asks once. Then it:
 2. installs `agent-secrets.exe` to `%LOCALAPPDATA%\AgentSecrets\bin`;
 3. adds that directory to your *user* `PATH` (no Administrator rights; the system `PATH` is
    untouched) and to the current terminal;
-4. installs the [Agent Skill](#11-installing-the-agent-skill) for Claude Code and Codex.
+4. installs the [Agent Skill](#11-installing-the-agent-skill) for Claude Code (`~\.claude\skills`)
+   and Codex (`$CODEX_HOME\skills`, by default `~\.codex\skills`).
 
 Your secrets are never touched. **Run the same command again to upgrade** (this works even
 while an `agent-secrets run` is in progress).
@@ -116,6 +117,7 @@ Options are passed with this form of the one-liner:
 | `-Version v0.1.0` | Install a specific release instead of the latest. |
 | `-Yes` | Do not ask (unattended installs). |
 | `-NoSkills` | Do not install the Claude Code / Codex skill. |
+| `-AgentsSkills` | Also install the skill to `~\.agents\skills` (see [section 11](#11-installing-the-agent-skill)). |
 | `-NoPath` | Do not modify `PATH`. |
 | `-InstallDir <dir>` | Install somewhere other than `%LOCALAPPDATA%\AgentSecrets`. |
 | `-Runtime win-arm64` | Override CPU detection. |
@@ -271,8 +273,8 @@ A ready-made demo lives in [`examples/`](examples/README.md).
 
 ## 9. Using AgentSecrets with Codex
 
-1. Install the skill (the installer offers this; see [section 11](#11-installing-the-agent-skill)).
-   Codex discovers it from `~/.agents/skills/agent-secrets/` and activates it on its own when a task
+1. Install the skill (the installer does this; see [section 11](#11-installing-the-agent-skill)).
+   Codex discovers it in `~/.codex/skills/agent-secrets/` and activates it on its own when a task
    involves credentials. You can also invoke it explicitly with `$agent-secrets`.
 2. Alternatively — or additionally — paste [`integrations/AGENTS.agent-secrets.md`](integrations/AGENTS.agent-secrets.md)
    into your global `~/.codex/AGENTS.md` or a project's `AGENTS.md`.
@@ -323,10 +325,13 @@ and never to read, print, write or hunt for secret values.
 | Agent | Global (all projects) | Per project (commit it for your team) |
 | --- | --- | --- |
 | Claude Code | `~/.claude/skills/agent-secrets/SKILL.md` | `.claude/skills/agent-secrets/SKILL.md` |
-| Codex | `~/.agents/skills/agent-secrets/SKILL.md` | `.agents/skills/agent-secrets/SKILL.md` |
+| Codex | `~/.codex/skills/agent-secrets/SKILL.md` | `.agents/skills/agent-secrets/SKILL.md` |
 
-(`~` is `C:\Users\<you>`. Locations verified against the official Claude Code and Codex
-documentation in September 2026; if a product moves them, copy the folder to the new place.)
+`~` is `C:\Users\<you>`. Codex reads user skills from `$CODEX_HOME/skills`, which defaults to
+`~/.codex/skills`; the installer honours `CODEX_HOME` if you have set it. The published Codex
+documentation also lists `~/.agents/skills` as the user-level location. If your Codex looks
+there, add that copy as well with `-AgentsSkills`, but do not install both unless you need to:
+the same skill registered twice is at best noise.
 
 **Automatic:** the [installer](#3-installation) installs the skill for both agents (unless you
 pass `-NoSkills`) and refreshes it on every upgrade.
@@ -339,8 +344,8 @@ New-Item -ItemType Directory -Force "$HOME\.claude\skills\agent-secrets" | Out-N
 Copy-Item .\skill\agent-secrets\* "$HOME\.claude\skills\agent-secrets\" -Recurse -Force
 
 # Codex
-New-Item -ItemType Directory -Force "$HOME\.agents\skills\agent-secrets" | Out-Null
-Copy-Item .\skill\agent-secrets\* "$HOME\.agents\skills\agent-secrets\" -Recurse -Force
+New-Item -ItemType Directory -Force "$HOME\.codex\skills\agent-secrets" | Out-Null
+Copy-Item .\skill\agent-secrets\* "$HOME\.codex\skills\agent-secrets\" -Recurse -Force
 ```
 
 Restart the agent afterwards. `agent-secrets doctor` reports whether both copies are in place.

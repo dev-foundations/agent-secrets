@@ -1285,7 +1285,7 @@ agent-secrets run --env OPENAI_API_KEY=openai -- python demo.py    # any time, b
           <li>downloads the latest release for your CPU and <strong>verifies its SHA-256 checksum</strong>;</li>
           <li>installs <code>agent-secrets.exe</code> to <code>%LOCALAPPDATA%\AgentSecrets\bin</code>;</li>
           <li>adds that directory to your <em>user</em> <code>PATH</code> (no Administrator rights; the system <code>PATH</code> is untouched) and to the current terminal;</li>
-          <li>installs the <a href="#11-installing-the-agent-skill">Agent Skill</a> for Claude Code and Codex.</li>
+          <li>installs the <a href="#11-installing-the-agent-skill">Agent Skill</a> for Claude Code (<code>~\.claude\skills</code>) and Codex (<code>$CODEX_HOME\skills</code>, by default <code>~\.codex\skills</code>).</li>
         </ol>
 
         <div class="callout callout--tip">
@@ -1314,6 +1314,7 @@ agent-secrets run --env OPENAI_API_KEY=openai -- python demo.py    # any time, b
               <tr><th scope="row"><code>-Version v0.1.0</code></th><td>Install a specific release instead of the latest.</td></tr>
               <tr><th scope="row"><code>-Yes</code></th><td>Do not ask (unattended installs).</td></tr>
               <tr><th scope="row"><code>-NoSkills</code></th><td>Do not install the Claude Code / Codex skill.</td></tr>
+              <tr><th scope="row"><code>-AgentsSkills</code></th><td>Also install the skill to <code>~\.agents\skills</code> (see <a href="#11-installing-the-agent-skill">section 11</a>).</td></tr>
               <tr><th scope="row"><code>-NoPath</code></th><td>Do not modify <code>PATH</code>.</td></tr>
               <tr><th scope="row"><code>-InstallDir &lt;dir&gt;</code></th><td>Install somewhere other than <code>%LOCALAPPDATA%\AgentSecrets</code>.</td></tr>
               <tr><th scope="row"><code>-Runtime win-arm64</code></th><td>Override CPU detection.</td></tr>
@@ -1551,7 +1552,7 @@ Add it with:
         <h2 id="h-9"><span class="sec-num" aria-hidden="true">9</span><span><span class="sr-only">9. </span>Using AgentSecrets with Codex</span><a class="anchor" href="#9-using-agentsecrets-with-codex" aria-label="Link to section 9, Using AgentSecrets with Codex">#</a></h2>
 
         <ol class="steps">
-          <li>Install the skill (the installer offers this; see <a href="#11-installing-the-agent-skill">section 11</a>). Codex discovers it from <code>~/.agents/skills/agent-secrets/</code> and activates it on its own when a task involves credentials. You can also invoke it explicitly with <code>$agent-secrets</code>.</li>
+          <li>Install the skill (the installer does this; see <a href="#11-installing-the-agent-skill">section 11</a>). Codex discovers it in <code>~/.codex/skills/agent-secrets/</code> and activates it on its own when a task involves credentials. You can also invoke it explicitly with <code>$agent-secrets</code>.</li>
           <li>Alternatively — or additionally — paste <a href="integrations/AGENTS.agent-secrets.md"><code>integrations/AGENTS.agent-secrets.md</code></a> into your global <code>~/.codex/AGENTS.md</code> or a project's <code>AGENTS.md</code>.</li>
         </ol>
 
@@ -1628,14 +1629,14 @@ Codex:  agent-secrets exists openai                       → exit 0
               </tr>
               <tr>
                 <th scope="row">Codex</th>
-                <td><code>~/.agents/skills/agent-secrets/SKILL.md</code></td>
+                <td><code>~/.codex/skills/agent-secrets/SKILL.md</code></td>
                 <td><code>.agents/skills/agent-secrets/SKILL.md</code></td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <p>(<code>~</code> is <code>C:\Users\&lt;you&gt;</code>. Locations verified against the official Claude Code and Codex documentation in September 2026; if a product moves them, copy the folder to the new place.)</p>
+        <p><code>~</code> is <code>C:\Users\&lt;you&gt;</code>. Codex reads user skills from <code>$CODEX_HOME/skills</code>, which defaults to <code>~/.codex/skills</code>; the installer honours <code>CODEX_HOME</code> if you have set it. The published Codex documentation also lists <code>~/.agents/skills</code> as the user-level location. If your Codex looks there, add that copy as well with <code>-AgentsSkills</code>, but do not install both unless you need to: the same skill registered twice is at best noise.</p>
 
         <h3 id="skill-automatic">Automatic</h3>
 
@@ -1650,8 +1651,8 @@ New-Item -ItemType Directory -Force "$HOME\.claude\skills\agent-secrets" | Out-N
 Copy-Item .\skill\agent-secrets\* "$HOME\.claude\skills\agent-secrets\" -Recurse -Force
 
 # Codex
-New-Item -ItemType Directory -Force "$HOME\.agents\skills\agent-secrets" | Out-Null
-Copy-Item .\skill\agent-secrets\* "$HOME\.agents\skills\agent-secrets\" -Recurse -Force</code></pre>
+New-Item -ItemType Directory -Force "$HOME\.codex\skills\agent-secrets" | Out-Null
+Copy-Item .\skill\agent-secrets\* "$HOME\.codex\skills\agent-secrets\" -Recurse -Force</code></pre>
         </div>
 
         <p>Restart the agent afterwards. <code>agent-secrets doctor</code> reports whether both copies are in place.</p>

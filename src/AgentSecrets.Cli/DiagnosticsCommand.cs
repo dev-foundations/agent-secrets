@@ -143,10 +143,14 @@ public static class DiagnosticsCommand
     {
         report.Section("Agent skill (optional)");
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        // Codex reads $CODEX_HOME/skills, which defaults to ~/.codex/skills.
+        string codexHome = Environment.GetEnvironmentVariable("CODEX_HOME") is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(home, ".codex");
         (string Agent, string Path)[] locations =
         [
             ("Claude Code", Path.Combine(home, ".claude", "skills", "agent-secrets", "SKILL.md")),
-            ("Codex", Path.Combine(home, ".agents", "skills", "agent-secrets", "SKILL.md")),
+            ("Codex", Path.Combine(codexHome, "skills", "agent-secrets", "SKILL.md")),
         ];
 
         foreach (var (agent, path) in locations)
@@ -159,6 +163,13 @@ public static class DiagnosticsCommand
             {
                 report.Info($"{agent}: not installed (expected at {path}; the installer adds it:  {CliApp.InstallCommand})");
             }
+        }
+
+        // Installed by 'install.ps1 -AgentsSkills', or by a version before 0.1.1.
+        string agentsPath = Path.Combine(home, ".agents", "skills", "agent-secrets", "SKILL.md");
+        if (File.Exists(agentsPath))
+        {
+            report.Info($"Codex (.agents): {agentsPath}");
         }
     }
 
