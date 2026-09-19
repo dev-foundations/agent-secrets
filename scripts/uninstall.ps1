@@ -40,8 +40,8 @@ param(
     $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
     $skillDirs = @(
         (Join-Path $HOME '.claude\skills\agent-secrets'),
-        (Join-Path $codexHome 'skills\agent-secrets'),
-        (Join-Path $HOME '.agents\skills\agent-secrets')   # location used by older installs
+        (Join-Path $HOME '.agents\skills\agent-secrets'),
+        (Join-Path $codexHome 'skills\agent-secrets')   # the alternative location Codex also scans
     )
 
     function Test-SamePath([string]$A, [string]$B) {

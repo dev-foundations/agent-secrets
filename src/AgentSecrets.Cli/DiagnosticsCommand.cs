@@ -143,33 +143,42 @@ public static class DiagnosticsCommand
     {
         report.Section("Agent skill (optional)");
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        // Codex reads $CODEX_HOME/skills, which defaults to ~/.codex/skills.
+        string claudePath = Path.Combine(home, ".claude", "skills", "agent-secrets", "SKILL.md");
+        if (File.Exists(claudePath))
+        {
+            report.Ok($"Claude Code: {claudePath}");
+        }
+        else
+        {
+            report.Info($"Claude Code: not installed (expected at {claudePath}; the installer adds it:  {CliApp.InstallCommand})");
+        }
+
+        // Codex scans ~/.agents/skills (its documented user-level location) and $CODEX_HOME/skills
+        // (default ~/.codex/skills), without de-duplicating between them.
         string codexHome = Environment.GetEnvironmentVariable("CODEX_HOME") is { Length: > 0 } custom
             ? custom
             : Path.Combine(home, ".codex");
-        (string Agent, string Path)[] locations =
-        [
-            ("Claude Code", Path.Combine(home, ".claude", "skills", "agent-secrets", "SKILL.md")),
-            ("Codex", Path.Combine(codexHome, "skills", "agent-secrets", "SKILL.md")),
-        ];
-
-        foreach (var (agent, path) in locations)
-        {
-            if (File.Exists(path))
-            {
-                report.Ok($"{agent}: {path}");
-            }
-            else
-            {
-                report.Info($"{agent}: not installed (expected at {path}; the installer adds it:  {CliApp.InstallCommand})");
-            }
-        }
-
-        // Installed by 'install.ps1 -AgentsSkills', or by a version before 0.1.1.
         string agentsPath = Path.Combine(home, ".agents", "skills", "agent-secrets", "SKILL.md");
-        if (File.Exists(agentsPath))
+        string codexHomePath = Path.Combine(codexHome, "skills", "agent-secrets", "SKILL.md");
+        bool inAgents = File.Exists(agentsPath);
+        bool inCodexHome = File.Exists(codexHomePath);
+
+        if (inAgents && inCodexHome)
         {
-            report.Info($"Codex (.agents): {agentsPath}");
+            report.Problem($"Codex: installed twice, so Codex lists the skill twice. Keep one and delete the other:{Environment.NewLine}" +
+                           $"         {agentsPath}{Environment.NewLine}         {codexHomePath}");
+        }
+        else if (inAgents)
+        {
+            report.Ok($"Codex: {agentsPath}");
+        }
+        else if (inCodexHome)
+        {
+            report.Ok($"Codex: {codexHomePath}   (CODEX_HOME location)");
+        }
+        else
+        {
+            report.Info($"Codex: not installed (expected at {agentsPath}; the installer adds it:  {CliApp.InstallCommand})");
         }
     }
 

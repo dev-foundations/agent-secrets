@@ -11,8 +11,7 @@
       1. Downloads the release package for your CPU (x64 or ARM64) and verifies its SHA-256.
       2. Installs agent-secrets.exe to %LOCALAPPDATA%\AgentSecrets\bin (self-contained, no .NET needed).
       3. Adds that directory to your *user* PATH (HKCU; the system PATH is not touched).
-      4. Installs the agent skill for Claude Code (~\.claude\skills) and Codex ($CODEX_HOME\skills,
-         by default ~\.codex\skills).
+      4. Installs the agent skill for Claude Code (~\.claude\skills) and Codex (~\.agents\skills).
 
     Running it again upgrades in place, also while agent-secrets is running.
     Your secrets (Windows Credential Manager) are never touched.
@@ -35,9 +34,10 @@
 .PARAMETER NoSkills
     Do not install the Claude Code / Codex skill.
 
-.PARAMETER AgentsSkills
-    Also install the skill to ~\.agents\skills, the user-level location in the published Codex
-    documentation. Codex CLI reads $CODEX_HOME\skills (default ~\.codex\skills), which is always used.
+.PARAMETER CodexHomeSkills
+    Install the Codex skill to $CODEX_HOME\skills (default ~\.codex\skills) instead of
+    ~\.agents\skills. Codex scans both, so only one is installed: a skill present in both
+    directories is listed twice.
 
 .PARAMETER Yes
     Do not ask for confirmation (unattended installs).
@@ -53,7 +53,7 @@ param(
     [switch]$FromSource,
     [switch]$NoPath,
     [switch]$NoSkills,
-    [switch]$AgentsSkills,
+    [switch]$CodexHomeSkills,
     [switch]$Yes
 )
 
@@ -70,18 +70,18 @@ param(
     if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA 'AgentSecrets' }
     $binDir = Join-Path $InstallDir 'bin'
     $exePath = Join-Path $binDir 'agent-secrets.exe'
-    # Codex reads $CODEX_HOME/skills, which defaults to ~\.codex\skills (see Codex's own
-    # skill-installer). ~\.agents\skills is the location in the published Codex documentation;
-    # it is installed only on request, so the same skill is not registered twice.
+    # Codex scans both ~\.agents\skills (its documented user-level location) and
+    # $CODEX_HOME\skills (default ~\.codex\skills). It does NOT de-duplicate: a skill present in
+    # both is listed twice. So exactly one is installed - the documented one by default.
     $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
+    $codexHomeSkillPath = Join-Path $codexHome 'skills\agent-secrets'
     $agentsSkillPath = Join-Path $HOME '.agents\skills\agent-secrets'
+    $codexSkill = if ($CodexHomeSkills) { $codexHomeSkillPath } else { $agentsSkillPath }
+    $staleSkill = if ($CodexHomeSkills) { $agentsSkillPath } else { $codexHomeSkillPath }
     $skillTargets = @(
         @{ Agent = 'Claude Code'; Path = (Join-Path $HOME '.claude\skills\agent-secrets') },
-        @{ Agent = 'Codex';       Path = (Join-Path $codexHome 'skills\agent-secrets') }
+        @{ Agent = 'Codex';       Path = $codexSkill }
     )
-    if ($AgentsSkills) {
-        $skillTargets += @{ Agent = 'Codex (.agents)'; Path = $agentsSkillPath }
-    }
 
     function Test-SamePath([string]$A, [string]$B) {
         $left = [Environment]::ExpandEnvironmentVariables($A).Trim().TrimEnd('\')
@@ -254,11 +254,10 @@ param(
 
         if (-not $NoSkills) {
             $skillSource = Join-Path $staging 'skill\agent-secrets'
-            # Earlier versions installed to ~\.agents\skills. Remove that copy unless it was
-            # asked for, so an outdated duplicate cannot linger.
-            if (-not $AgentsSkills -and (Test-Path $agentsSkillPath)) {
-                Remove-Item $agentsSkillPath -Recurse -Force
-                Write-Host "Removed the outdated skill copy in $agentsSkillPath"
+            # Remove the copy in the other supported directory, so Codex never lists the skill twice.
+            if (Test-Path $staleSkill) {
+                Remove-Item $staleSkill -Recurse -Force
+                Write-Host "Removed the duplicate skill copy in $staleSkill"
             }
             foreach ($target in $skillTargets) {
                 if (Test-Path $target.Path) { Remove-Item $target.Path -Recurse -Force }
