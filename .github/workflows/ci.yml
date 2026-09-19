@@ -35,5 +35,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "agent-secrets --version failed" }
           & $exe get anything 2>$null
           if ($LASTEXITCODE -ne 2) { throw "expected 'get' to be refused" }
+          $global:LASTEXITCODE = 0   # the runner ends the step with 'exit $LASTEXITCODE'
           & (Join-Path $dir 'uninstall.ps1') -InstallDir $dir -KeepSkills -Yes
           if (Test-Path $dir) { throw "uninstall left $dir behind" }
