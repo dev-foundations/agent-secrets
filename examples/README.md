@@ -2,7 +2,7 @@
 
 `.agentsecrets.json` in this directory maps `DEMO_API_KEY` to the secret named `demo-key`.
 
-```powershell
+```shell
 # 1. Store a throw-away value (type anything at the hidden prompt)
 agent-secrets set demo-key
 
@@ -18,5 +18,7 @@ python python-example/check_secret.py
 # 4. Clean up
 agent-secrets remove demo-key
 ```
+
+On macOS, use `python3` instead of `python`.
 
 The script only reports whether the variable is set. It never prints the value.

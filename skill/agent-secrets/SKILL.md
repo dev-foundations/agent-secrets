@@ -5,20 +5,22 @@ description: Use whenever a task needs an API key, token or other credential (Op
 
 # AgentSecrets
 
-The user's credentials are stored once per machine in Windows Credential Manager under short
-names ("aliases") such as `openai` or `elevenlabs`. The `agent-secrets` CLI injects them as
-environment variables into **one child process** and nowhere else. You work with alias
-*names* only. You never need, see or handle a secret *value*.
+The user's credentials are stored once per machine in the operating system's credential store
+(Windows Credential Manager or the macOS Keychain) under short names ("aliases") such as
+`openai` or `elevenlabs`. The `agent-secrets` CLI injects them as environment variables into
+**one child process** and nowhere else. You work with alias *names* only. You never need, see
+or handle a secret *value*.
 
 ## Hard rules
 
 - Never ask the user to paste a key into the chat, source code, a config file or a command.
 - Never write secret values to `.env`, source files, config files, scripts, logs or commits.
-- Never print or inspect a secret: no `echo $env:OPENAI_API_KEY`, `printenv`, `set`,
-  `Get-ChildItem env:`, and no debug output of the variable inside code you run. To verify
-  a variable, check only that it is set.
+- Never print or inspect a secret: no `echo $env:OPENAI_API_KEY`, `echo $OPENAI_API_KEY`,
+  `printenv`, `env`, `set`, `Get-ChildItem env:`, and no debug output of the variable inside
+  code you run. To verify a variable, check only that it is set.
 - Never search the machine for keys (other `.env` files, shell history, Credential Manager,
-  registry, environment dumps) to work around a missing secret.
+  the macOS Keychain or `security find-generic-password`, the registry, environment dumps) to
+  work around a missing secret.
 - Never run `agent-secrets set` yourself and never invent or supply a value. There is no
   `get` or `export` command; do not look for one.
 
@@ -87,12 +89,17 @@ environment variables into **one child process** and nowhere else. You work with
   placeholders only.
 - Scripts that are not executables need their interpreter: `-- python x.py`,
   `-- node x.js`, `-- pwsh -File x.ps1`. For shell built-ins or pipelines use
-  `-- cmd /c "..."` or `-- pwsh -Command "..."`.
+  `-- cmd /c "..."` or `-- pwsh -Command "..."` on Windows, `-- sh -c '...'` on macOS.
+  On macOS, executable scripts with a `#!` line run directly, and Python is usually `python3`.
 - The secret exists only in the child process. A later command in your shell will not have
   it; wrap every command that needs it in `agent-secrets run`.
-- If `agent-secrets` is not found, ask the user to install it in their own PowerShell terminal
-  and then restart you (it changes their PATH, so do not run it yourself):
-  `irm https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.ps1 | iex`
+- On macOS, the first use of a secret after agent-secrets is installed or upgraded can open a
+  Keychain dialog on the user's screen, and `agent-secrets run` waits until it is answered. If
+  a run seems stuck or fails with a Keychain error, tell the user; do not retry in a loop.
+- If `agent-secrets` is not found, ask the user to install it in their own terminal and then
+  restart you (it can change their PATH, so do not run it yourself):
+  Windows (PowerShell): `irm https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.ps1 | iex`
+  macOS: `curl -fsSL https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.sh | sh`
   `agent-secrets doctor` diagnoses setup. Source: https://github.com/dev-foundations/agent-secrets
 - If you ever do see a secret value (for example a program printed it), do not repeat it;
   tell the user so they can rotate the key.

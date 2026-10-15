@@ -2,21 +2,27 @@
 
 **Store a secret once. Refer to it by name. Inject it only into the process that needs it.**
 
-AgentSecrets is a small Windows command-line tool for developers who work with coding agents
-such as **OpenAI Codex** and **Claude Code**. Your API keys live in Windows Credential Manager;
-agents and scripts only ever see their *names*.
+AgentSecrets is a small command-line tool for Windows and macOS, for developers who work with
+coding agents such as **OpenAI Codex** and **Claude Code**. Your API keys live in Windows
+Credential Manager or the macOS Keychain; agents and scripts only ever see their *names*.
 
-```powershell
+```shell
 agent-secrets set openai                                           # once per machine (hidden prompt)
 agent-secrets run --env OPENAI_API_KEY=openai -- python demo.py    # any time, by you or your agent
 ```
 
 No `.env` files. No keys in prompts, repositories, shell history or persistent environment variables.
 
-**Install** (PowerShell, no admin rights; installs the tool and the skill for Claude Code and Codex):
+**Install** (no admin rights; installs the tool and the skill for Claude Code and Codex):
 
 ```powershell
+# Windows (PowerShell)
 irm https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.ps1 | iex
+```
+
+```sh
+# macOS (Terminal)
+curl -fsSL https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.sh | sh
 ```
 
 ---
@@ -65,17 +71,18 @@ remember. AgentSecrets replaces all of that with one rule:
              │ hidden prompt                                       │ 1. read .agentsecrets.json
              ▼                                                     │    OPENAI_API_KEY -> "openai"
 ┌──────────────────────────┐   2. read "AgentSecrets/openai"       │
-│ Windows Credential       │ ◄─────────────────────────────────────┤
-│ Manager (per user,       │                                       │ 3. start child process with
-│ encrypted by Windows)    │                                       ▼    OPENAI_API_KEY=<secret>
+│ Credential Manager       │ ◄─────────────────────────────────────┤
+│ (Windows) or Keychain    │                                       │ 3. start child process with
+│ (macOS), per user        │                                       ▼    OPENAI_API_KEY=<secret>
 └──────────────────────────┘                ┌─────────────────────────────────────────────┐
                                             │ python app.py   (only this process sees it) │
                                             └─────────────────────────────────────────────┘
 ```
 
-- **Storage** – secrets are *Generic Credentials* in Windows Credential Manager, named
-  `AgentSecrets/<name>`. Windows encrypts them for your user account. Nothing is written to
-  plaintext files.
+- **Storage** – on Windows, secrets are *Generic Credentials* in Windows Credential Manager,
+  named `AgentSecrets/<name>` and encrypted by Windows for your user account. On macOS, they are
+  generic passwords in your login keychain (service `AgentSecrets`, account `<name>`, shown in
+  Keychain Access as `AgentSecrets/<name>`). Nothing is written to plaintext files.
 - **Injection** – `agent-secrets run` reads the secrets it needs, starts your command as a
   child process, and places the values **only in that child's environment block**. Your shell,
   your user environment and the agent's session are never modified.
@@ -85,8 +92,11 @@ remember. AgentSecrets replaces all of that with one rule:
 
 ## 3. Installation
 
-Requirements: Windows 10/11, x64 or ARM64. Nothing else: the program is self-contained
-(no .NET runtime needed).
+Requirements: Windows 10/11 (x64 or ARM64) or macOS (Apple silicon or Intel). Nothing else: the
+program is self-contained (no .NET runtime needed). To build from source instead, see
+[Development](#16-development).
+
+### Windows
 
 In PowerShell (Windows PowerShell 5.1 or PowerShell 7):
 
@@ -126,17 +136,61 @@ Options are passed with this form of the one-liner:
 Prefer to read before you run? Download
 [`install.ps1`](https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.ps1),
 inspect it, then run `powershell -ExecutionPolicy Bypass -File .\install.ps1`.
-To build from source instead, see [Development](#16-development).
 
-**Open a new terminal** (or restart the one your agent uses), then verify:
+### macOS
 
-```powershell
+In Terminal:
+
+```sh
+curl -fsSL https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.sh | sh
+```
+
+The installer shows what it will do and asks once. Then it:
+
+1. downloads the latest release for your Mac (Apple silicon or Intel) and **verifies its SHA-256 checksum**;
+2. installs `agent-secrets` to `~/.local/bin`;
+3. if that directory is not on your `PATH` yet, adds it in your shell profile (`~/.zprofile` for
+   zsh; for bash, whichever of `~/.bash_profile`, `~/.bash_login` and `~/.profile` it reads), on a
+   line marked `# added by the AgentSecrets installer`;
+4. installs the [Agent Skill](#11-installing-the-agent-skill) for Claude Code (`~/.claude/skills`)
+   and Codex (`~/.agents/skills`).
+
+Your secrets are never touched. **Run the same command again to upgrade** (this works even
+while an `agent-secrets run` is in progress). Options go after `sh -s --`:
+
+```sh
+curl -fsSL https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.sh | sh -s -- --version v0.2.0 --yes
+```
+
+| Option | Effect |
+| --- | --- |
+| `--version v0.2.0` | Install a specific release instead of the latest. |
+| `--yes` | Do not ask (unattended installs). |
+| `--no-skills` | Do not install the Claude Code / Codex skill. |
+| `--codex-home-skills` | Put the Codex skill in `$CODEX_HOME/skills` instead of `~/.agents/skills` (see [section 11](#11-installing-the-agent-skill)). |
+| `--no-path` | Do not modify `PATH`. |
+| `--prefix <dir>` | Install to `<dir>/bin` and `<dir>/share/agent-secrets` instead of `~/.local`. |
+| `--runtime osx-x64` | Override CPU detection (`osx-arm64` or `osx-x64`). |
+| `--package <file>` | Install from a downloaded `agent-secrets-osx-arm64.tar.gz` (offline). |
+
+Prefer to read before you run? Download
+[`install.sh`](https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.sh),
+inspect it, then run `sh install.sh`.
+
+The first time agent-secrets uses a secret after you install or upgrade it, macOS may ask
+whether it may use the keychain item: choose *Always Allow* ([why](#12-security-model)).
+
+### Verify
+
+**Open a new terminal** (or restart the one your agent uses), then run:
+
+```shell
 agent-secrets doctor
 ```
 
 ## 4. Add your first secret
 
-```powershell
+```shell
 agent-secrets set openai
 ```
 
@@ -147,7 +201,7 @@ Secret 'openai' stored successfully.
 
 Paste or type the key — nothing is echoed, not even asterisks — and press Enter. Then the next one:
 
-```powershell
+```shell
 agent-secrets set elevenlabs
 ```
 
@@ -160,13 +214,13 @@ Things worth knowing:
   `azure-openai`), with a suffix when you have several (`openai-work`).
 - Setting an existing name asks before overwriting (`--force` skips the question).
 - `set` refuses to run without a real terminal. An agent that tries it gets an error telling it
-  to ask *you*. For deliberate automation there is `--stdin`
-  (for example `Get-Clipboard | agent-secrets set openai --stdin`).
-- Maximum length is 1280 characters (a Windows Credential Manager limit).
+  to ask *you*. For deliberate automation there is `--stdin` (for example
+  `Get-Clipboard | agent-secrets set openai --stdin` on Windows, `pbpaste | agent-secrets set openai --stdin` on macOS).
+- On Windows the maximum length is 1280 characters (a Credential Manager limit).
 
 ## 5. List, check and remove secrets
 
-```powershell
+```shell
 agent-secrets list
 ```
 
@@ -177,7 +231,7 @@ openai
 
 Only names are ever shown.
 
-```powershell
+```shell
 agent-secrets exists openai        # exit code 0 = exists, 1 = missing
 agent-secrets exists openai -q     # same, prints nothing
 agent-secrets remove openai        # asks for confirmation
@@ -189,16 +243,18 @@ value on its next run, because no project ever had a copy.
 
 ## 6. Run a command with one secret
 
-```powershell
+```shell
 agent-secrets run --env OPENAI_API_KEY=openai -- python demo.py
 ```
 
 Read it as: *run `python demo.py` with the environment variable `OPENAI_API_KEY` set to the secret named `openai`.*
 
 - Everything after `--` is the command and its arguments, passed through unchanged
-  (spaces, quotes, `%`, `&` and friends are handled correctly — also for `.cmd` shims like `npm`).
+  (spaces, quotes, `%`, `&` and friends are handled correctly — also for `.cmd` shims like `npm`
+  on Windows and `#!` scripts on macOS).
 - The exit code is the child's exit code.
-- Your shell is unchanged afterwards: `echo $env:OPENAI_API_KEY` still prints nothing.
+- Your shell is unchanged afterwards: `echo $env:OPENAI_API_KEY` (PowerShell) or
+  `echo $OPENAI_API_KEY` (macOS) still prints nothing.
 
 ## 7. Run a command with several secrets
 
@@ -211,6 +267,7 @@ agent-secrets run `
   -- python demo.py
 ```
 
+On macOS, continue lines with `\` instead of PowerShell's backtick.
 The same secret can feed different variable names in different projects
 (`--env AZURE_OPENAI_KEY=azure-openai`, `--env GH_TOKEN=github`, …).
 
@@ -230,14 +287,14 @@ Put the bindings in a file at the root of your project so nobody has to remember
 
 Now the command is simply:
 
-```powershell
+```shell
 agent-secrets run -- python app.py
 ```
 
 **This file contains only names and is safe to commit.** It doubles as documentation of which
 credentials the project needs. Check a project's requirements at any time:
 
-```powershell
+```shell
 agent-secrets status
 ```
 
@@ -254,9 +311,9 @@ Rules, kept deliberately simple:
 | --- | --- |
 | Lookup | The current directory first, then each parent directory **up to the Git root** (the first directory containing `.git`). The nearest manifest wins; manifests are not merged. |
 | Outside a Git repository | Only the current directory is checked, so a stray file high up in your drive never applies by surprise. |
-| Override | `--env NAME=secret` on the command line overrides the manifest's binding for `NAME`; other manifest bindings still apply. |
+| Override | `--env NAME=secret` on the command line overrides the manifest's binding for `NAME`; other manifest bindings still apply. Windows ignores case in `NAME`, like its environment variables; on macOS it must match exactly. |
 | Other options | `--manifest <path>` uses a specific file; `--no-manifest` ignores manifests. |
-| Validation | `version` must be `1`; `bindings` maps valid environment variable names to valid secret names; unknown properties are errors (`$schema` is allowed). Comments and trailing commas are tolerated. |
+| Validation | `version` must be `1`; `bindings` maps valid environment variable names to valid secret names; unknown properties are errors (`$schema` is allowed); names that differ only in case are rejected on every platform, so a manifest also works on Windows. Comments and trailing commas are tolerated. |
 | Missing secret | `run` stops *before* starting your command, exits with 125 and tells you exactly which `agent-secrets set <name>` to run. |
 
 If a secret is missing you will see:
@@ -297,7 +354,8 @@ Codex:  The secret 'elevenlabs' is not stored on this machine. Please run this i
 ```
 
 **Sandbox note:** Codex runs commands in a sandbox. If `agent-secrets run` cannot reach Credential
-Manager or the network from inside it, approve the command when Codex asks to run it outside the sandbox.
+Manager, the macOS Keychain or the network from inside it, approve the command when Codex asks to
+run it outside the sandbox.
 
 ## 10. Using AgentSecrets with Claude Code
 
@@ -315,6 +373,9 @@ Keeping that one prompt is a cheap safeguard.
 Run `agent-secrets set <name>` in a **separate terminal window**, not through the agent and not
 with Claude Code's `!` prefix: the hidden prompt needs a real terminal.
 
+On macOS, a Keychain dialog may appear the first time `agent-secrets run` uses a secret after an
+install or upgrade; the command waits until you answer it ([section 12](#12-security-model)).
+
 ## 11. Installing the Agent Skill
 
 The skill at [`skill/agent-secrets/SKILL.md`](skill/agent-secrets/SKILL.md) is what makes the workflow
@@ -327,25 +388,34 @@ and never to read, print, write or hunt for secret values.
 | Claude Code | `~/.claude/skills/agent-secrets/SKILL.md` | `.claude/skills/agent-secrets/SKILL.md` |
 | Codex | `~/.agents/skills/agent-secrets/SKILL.md` | `.agents/skills/agent-secrets/SKILL.md` |
 
-`~` is `C:\Users\<you>`. Codex also scans `$CODEX_HOME/skills` (by default `~/.codex/skills`),
-where its own `skill-installer` puts skills. **Install the skill in one of the two, never both:**
-Codex does not de-duplicate, so a skill present in both directories is offered twice. Pass
-`-CodexHomeSkills` to the installer if you prefer the `CODEX_HOME` location; `agent-secrets doctor`
-reports it as a problem if both copies exist.
+`~` is your home folder (`C:\Users\<you>` on Windows, `/Users/<you>` on macOS). Codex also scans
+`$CODEX_HOME/skills` (by default `~/.codex/skills`), where its own `skill-installer` puts skills.
+**Install the skill in one of the two, never both:** Codex does not de-duplicate, so a skill
+present in both directories is offered twice. Pass `-CodexHomeSkills` (Windows) or
+`--codex-home-skills` (macOS) to the installer if you prefer the `CODEX_HOME` location;
+`agent-secrets doctor` reports it as a problem if both copies exist.
 
 **Automatic:** the [installer](#3-installation) installs the skill for both agents (unless you
-pass `-NoSkills`) and refreshes it on every upgrade.
+pass `-NoSkills` / `--no-skills`) and refreshes it on every upgrade.
 
 **Manual**, from a clone of this repository:
 
 ```powershell
-# Claude Code
+# Windows - Claude Code
 New-Item -ItemType Directory -Force "$HOME\.claude\skills\agent-secrets" | Out-Null
 Copy-Item .\skill\agent-secrets\* "$HOME\.claude\skills\agent-secrets\" -Recurse -Force
 
-# Codex
+# Windows - Codex
 New-Item -ItemType Directory -Force "$HOME\.agents\skills\agent-secrets" | Out-Null
 Copy-Item .\skill\agent-secrets\* "$HOME\.agents\skills\agent-secrets\" -Recurse -Force
+```
+
+```sh
+# macOS - Claude Code
+mkdir -p ~/.claude/skills/agent-secrets && cp -R skill/agent-secrets/. ~/.claude/skills/agent-secrets/
+
+# macOS - Codex
+mkdir -p ~/.agents/skills/agent-secrets && cp -R skill/agent-secrets/. ~/.agents/skills/agent-secrets/
 ```
 
 Restart the agent afterwards. `agent-secrets doctor` reports whether both copies are in place.
@@ -356,21 +426,24 @@ Prefer plain instruction files? Use the snippets in [`integrations/`](integratio
 ## 12. Security model
 
 > **AgentSecrets protects against accidental exposure and secret proliferation.**
-> **It does *not* protect against malicious software running as your Windows user.**
+> **It does *not* protect against malicious software running as your user.**
 
 What it gives you:
 
 - Secrets are not in repositories, `.env` files, prompts, agent transcripts, shell history or
   persistent environment variables.
-- One copy per machine, encrypted at rest by Windows for your account; rotate in one place.
+- One copy per machine, encrypted at rest by the operating system; rotate in one place.
 - The tool never prints a secret: not in output, errors, diagnostics or logs. `exists`, `list`,
   `status` and `doctor` do not even read the values.
 - Text that is rejected as a name is never echoed back, in case a key was pasted in the wrong place.
+- On macOS, keychain items are bound to agent-secrets: any other program that tries to read one
+  (for example an agent running Apple's `security` command) makes macOS ask you first.
 
 What it cannot do:
 
-- **Same-user malware.** Any program running as you can ask Credential Manager for your
-  credentials, exactly like AgentSecrets does. That is how Windows works.
+- **Same-user malware.** On Windows, any program running as you can ask Credential Manager for
+  your credentials, exactly like AgentSecrets does. On macOS it would have to get past the
+  Keychain dialog — or simply run `agent-secrets run` itself.
 - **A child process that misbehaves.** The command you run receives the real key. If it prints
   its environment, logs the key or sends it somewhere, AgentSecrets cannot stop it. Only run
   code you trust — and remember a `.agentsecrets.json` in an untrusted repository decides
@@ -379,32 +452,48 @@ What it cannot do:
   variable. The skill forbids it, the `run` permission prompt lets you see each command, and the
   absence of a `get` command removes the easy path — but this is guidance, not a sandbox.
 
+**macOS Keychain dialogs.** Releases are signed ad hoc for now, not with an Apple Developer ID, so
+each release is a new program to macOS. After you install or upgrade, expect a dialog once per
+secret, the first time agent-secrets uses it, asking whether agent-secrets may use the keychain
+item: choose *Always Allow*. Without a desktop session (SSH) the command fails instead; run it
+once from a terminal on the Mac.
+
 Details, including what to do when a key leaks: [SECURITY.md](SECURITY.md).
 
 ## 13. Troubleshooting
 
 Start with:
 
-```powershell
+```shell
 agent-secrets doctor
 ```
 
 | Symptom | Cause and fix |
 | --- | --- |
-| `agent-secrets` is not recognized | Open a **new** terminal after installing (PATH is read at terminal start). Still failing: run the [install command](#3-installation) again, or check that `%LOCALAPPDATA%\AgentSecrets\bin` is on your user PATH. |
+| `agent-secrets` is not recognized (Windows) | Open a **new** terminal after installing (PATH is read at terminal start). Still failing: run the [install command](#3-installation) again, or check that `%LOCALAPPDATA%\AgentSecrets\bin` is on your user PATH. |
+| `agent-secrets: command not found` (macOS) | Open a **new** terminal after installing. Still failing: check that `~/.local/bin` is on your `PATH` (`echo $PATH`); the installer adds it in `~/.zprofile` (zsh) or your bash profile. |
 | `Required secret '…' was not found` | Run the `agent-secrets set <name>` command shown. Check spelling with `agent-secrets list`. |
 | `Nothing to inject` | No manifest was found from the current directory and no `--env` was given. `cd` into the project, or pass `--env` / `--manifest <path>`. |
-| `Command '…' was not found` (exit 127) | The program is not on `PATH`. Programs in the current directory need `.\name` — the current directory is deliberately not searched, so a repository cannot shadow `python` or `git`. |
-| `… is not an executable` (exit 126) | Scripts need their interpreter: `-- python x.py`, `-- node x.js`, `-- pwsh -File x.ps1`. Shell built-ins and pipelines: `-- cmd /c "…"` or `-- pwsh -Command "…"`. |
+| `Command '…' was not found` (exit 127) | The program is not on `PATH`. Programs in the current directory need `.\name` (Windows) or `./name` (macOS) — the current directory is deliberately not searched, so a repository cannot shadow `python` or `git`. On macOS, Python is usually `python3`. |
+| `… is not an executable` (exit 126, Windows) | Scripts need their interpreter: `-- python x.py`, `-- node x.js`, `-- pwsh -File x.ps1`. Shell built-ins and pipelines: `-- cmd /c "…"` or `-- pwsh -Command "…"`. |
+| `… is not executable` (exit 126, macOS) | Make the script executable (`chmod +x`, with a `#!` line) or run it through its interpreter: `-- python3 x.py`, `-- sh x.sh`. Shell built-ins and pipelines: `-- sh -c '…'`. |
 | `'set' must be run by a person in an interactive terminal` | Working as intended: run it yourself in a normal terminal window. |
 | `Invalid manifest …` | The message names the file and the problem. Remember: values in `bindings` are secret *names*. |
-| Win32 error 1312 | Credential Manager is unavailable in this logon session (some SSH sessions, services, scheduled tasks). Use an interactive session. |
-| The program says the key is invalid | The stored value is wrong (partial paste?). Run `agent-secrets set <name>` again. You can also inspect the entry `AgentSecrets/<name>` in *Control Panel → Credential Manager → Windows Credentials*. |
+| Win32 error 1312 (Windows) | Credential Manager is unavailable in this logon session (some SSH sessions, services, scheduled tasks). Use an interactive session. |
+| A dialog asks whether agent-secrets may use a keychain item (macOS) | Expected once per secret after installing or upgrading ([section 12](#12-security-model)): choose *Always Allow*. If you did not just run agent-secrets, yourself or through your agent, choose *Deny*. |
+| `The macOS Keychain could not …` (OSStatus -25308) | The login keychain is locked or there is no desktop session (SSH, background jobs). Run the command in a terminal on the Mac, or unlock the keychain first with `security unlock-keychain`. |
+| `The macOS Keychain could not …` (OSStatus -128 or -25293) | Access was denied in the Keychain dialog. Run the command again and choose *Always Allow*. |
+| "agent-secrets" cannot be opened because the developer cannot be verified (macOS) | It was downloaded with a browser, so macOS quarantined it. Use the `curl` installer, or clear the flag: `xattr -d com.apple.quarantine ~/.local/bin/agent-secrets`. |
+| The program says the key is invalid | The stored value is wrong (partial paste?). Run `agent-secrets set <name>` again. You can also inspect the entry `AgentSecrets/<name>` in *Control Panel → Credential Manager → Windows Credentials* (Windows) or in *Keychain Access* (macOS; open it with Spotlight). |
 
 Exit codes of `run`: the child's own code, or **125** (could not run: missing secret, bad
 manifest, storage error), **126** (not executable), **127** (not found), **2** (usage error).
+On macOS a child stopped by a signal reports 128 + the signal number (143 for SIGTERM), as in a
+shell, and a SIGTERM sent to agent-secrets itself is passed on to the child.
 
 ## 14. Uninstalling
+
+On Windows (PowerShell):
 
 ```powershell
 irm https://github.com/dev-foundations/agent-secrets/releases/latest/download/uninstall.ps1 | iex
@@ -424,6 +513,23 @@ The installer also leaves a copy at `%LOCALAPPDATA%\AgentSecrets\uninstall.ps1` 
 `-RemoveSecrets`, `-KeepSkills`, `-Yes`). If `agent-secrets` is still running, for example a long
 `agent-secrets run`, the uninstaller stops without changing anything; run it again once it has finished.
 
+On macOS (Terminal):
+
+```sh
+curl -fsSL https://github.com/dev-foundations/agent-secrets/releases/latest/download/uninstall.sh | sh
+```
+
+This removes the program, the `PATH` line the installer added (kept while other programs are in
+that folder) and the Claude Code / Codex skills, and **keeps your secrets** in the Keychain
+(`AgentSecrets/<name>` in Keychain Access). To also delete every AgentSecrets secret:
+
+```sh
+curl -fsSL https://github.com/dev-foundations/agent-secrets/releases/latest/download/uninstall.sh | sh -s -- --remove-secrets
+```
+
+The installer also leaves a copy at `~/.local/share/agent-secrets/uninstall.sh` (options:
+`--remove-secrets`, `--keep-skills`, `--yes`, `--prefix <dir>`).
+
 ## 15. Command reference
 
 ```text
@@ -441,37 +547,42 @@ agent-secrets help | --version
 
 Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
-```powershell
+```shell
 git clone https://github.com/dev-foundations/agent-secrets.git
 cd agent-secrets
 dotnet build AgentSecrets.slnx
 dotnet test  AgentSecrets.slnx
-.\scripts\install.ps1 -FromSource     # build the release package locally and install it
+.\scripts\install.ps1 -FromSource     # Windows: build the release package locally and install it
+./scripts/install.sh --from-source    # macOS: the same
 ```
 
 ```
-src/AgentSecrets.Core    ISecretStore + WindowsCredentialStore, manifest, bindings, command resolution, child process
+src/AgentSecrets.Core    ISecretStore + WindowsCredentialStore + MacKeychainStore, manifest, bindings, command resolution, child process
 src/AgentSecrets.Cli     the agent-secrets executable (argument parsing, commands, diagnostics)
-tests/AgentSecrets.Tests unit tests (in-memory store) + integration tests (real Credential Manager, fake values)
+tests/AgentSecrets.Tests unit tests (in-memory store) + integration tests (real Credential Manager or Keychain, fake values)
 tests/AgentSecrets.TestProbe  child process used by tests; reports *whether* a variable is set, never its value
 skill/ integrations/     agent skill and AGENTS.md / CLAUDE.md snippets
 examples/                demo project
-scripts/                 install.ps1, uninstall.ps1, package.ps1 (builds the release zip)
-.github/workflows/       ci.yml (build, test, package, install smoke test), release.yml
+scripts/                 install.ps1/.sh, uninstall.ps1/.sh, package.ps1 (Windows zip), package.sh (macOS tar.gz)
+.github/workflows/       ci.yml (build, test, package, install smoke test on Windows and macOS), release.yml
 ```
 
 **Releasing:** bump `<Version>` in `Directory.Build.props`, then push a tag:
 
-```powershell
+```shell
 git tag v0.2.0
 git push origin v0.2.0
 ```
 
-The release workflow tests, builds `agent-secrets-win-x64.zip` and `agent-secrets-win-arm64.zip`,
-writes `SHA256SUMS.txt`, and publishes them together with `install.ps1` and `uninstall.ps1` as a
-GitHub release. The one-line installer always fetches the latest release.
+The release workflow tests and packages on Windows and macOS — `agent-secrets-win-x64.zip`,
+`agent-secrets-win-arm64.zip`, `agent-secrets-osx-arm64.tar.gz` and `agent-secrets-osx-x64.tar.gz` —
+writes `SHA256SUMS.txt`, and publishes them together with the install and uninstall scripts as a
+GitHub release. The one-line installers always fetch the latest release. The macOS binaries are
+signed ad hoc by the .NET SDK; Developer ID signing and notarization are not set up.
 
-Storage sits behind the small `ISecretStore` interface, so another backend (macOS Keychain,
-Linux Secret Service, 1Password, Azure Key Vault, …) can be added without touching the commands.
-Only Windows Credential Manager is implemented. The integration tests use unique throw-away
-names and their own Credential Manager prefix, use fake values only, and clean up after themselves.
+Storage sits behind the small `ISecretStore` interface, so another backend (Linux Secret Service,
+1Password, Azure Key Vault, …) can be added without touching the commands. Windows Credential
+Manager and the macOS Keychain are implemented. The integration tests use unique throw-away names
+in their own namespace (a Credential Manager prefix or a keychain service), use fake values only,
+and clean up after themselves; on macOS they use your login keychain (CI uses a temporary one).
+Tests that apply to one platform only are reported as skipped on the others.
