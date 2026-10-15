@@ -5,13 +5,30 @@ using System.Text.Json;
 namespace AgentSecrets.Tests;
 
 /// <summary>
-/// Tests against the real Windows Credential Manager, using fake values only.
-/// Store-level tests use their own target prefix, so they can never touch real AgentSecrets entries.
+/// Tests against the platform's real store (Windows Credential Manager or the macOS Keychain),
+/// using fake values only. Each instance uses its own namespace (target prefix or keychain
+/// service), so it can never touch real AgentSecrets entries.
 /// </summary>
-[SupportedOSPlatform("windows")]
-public sealed class WindowsCredentialStoreTests : IDisposable
+public sealed class SystemStoreTests : IDisposable
 {
-    private readonly WindowsCredentialStore _store = new($"AgentSecrets.Tests/{Guid.NewGuid():N}/");
+    private readonly string _namespace = $"AgentSecrets.Tests/{Guid.NewGuid():N}";
+    private readonly ISecretStore _store;
+
+    public SystemStoreTests()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            _store = new WindowsCredentialStore(_namespace + "/");
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            _store = new MacKeychainStore(_namespace);
+        }
+        else
+        {
+            throw new PlatformNotSupportedException("No secret store for this platform.");
+        }
+    }
 
     public void Dispose()
     {
@@ -21,7 +38,7 @@ public sealed class WindowsCredentialStoreTests : IDisposable
         }
     }
 
-    [Fact]
+    [PlatformFact(OS.Windows | OS.MacOS)]
     public void Round_trips_a_secret()
     {
         string secret = Fake.Secret() + " ñ✓ with spaces";
@@ -35,7 +52,7 @@ public sealed class WindowsCredentialStoreTests : IDisposable
         Assert.Equal(secret, _store.Get("openai"));
     }
 
-    [Fact]
+    [PlatformFact(OS.Windows | OS.MacOS)]
     public void Overwrites_lists_and_removes()
     {
         _store.Set("openai", "first");
@@ -50,7 +67,7 @@ public sealed class WindowsCredentialStoreTests : IDisposable
         Assert.Equal(["elevenlabs"], _store.List());
     }
 
-    [Fact]
+    [PlatformFact(OS.Windows | OS.MacOS)]
     public void Exists_matches_exact_names_only()
     {
         _store.Set("openai-work", "x");
@@ -59,7 +76,8 @@ public sealed class WindowsCredentialStoreTests : IDisposable
         Assert.True(_store.Exists("openai-work"));
     }
 
-    [Fact]
+    [PlatformFact(OS.Windows)]
+    [SupportedOSPlatform("windows")]
     public void Rejects_values_that_exceed_the_credential_manager_limit_without_echoing_them()
     {
         string tooLong = new('k', WindowsCredentialStore.MaxSecretChars + 1);
@@ -69,14 +87,64 @@ public sealed class WindowsCredentialStoreTests : IDisposable
         Assert.DoesNotContain(tooLong, ex.Message);
         _store.Set("big", new string('k', WindowsCredentialStore.MaxSecretChars)); // exactly at the limit is fine
     }
+
+    [PlatformFact(OS.MacOS)]
+    public void Keychain_has_no_credential_manager_size_limit()
+    {
+        string large = Fake.Secret() + new string('k', 10_000);
+
+        _store.Set("big", large);
+
+        Assert.Equal(large, _store.Get("big"));
+    }
+
+    [PlatformFact(OS.MacOS)]
+    public void Keychain_rejects_values_it_cannot_encode_without_echoing_them()
+    {
+        string broken = Fake.Secret() + "\uD800"; // an unpaired surrogate has no UTF-8 form
+
+        var ex = Assert.Throws<SecretStoreException>(() => _store.Set("broken", broken));
+
+        Assert.DoesNotContain(broken, ex.Message);
+        Assert.False(_store.Exists("broken"));
+    }
+
+    [PlatformFact(OS.MacOS)]
+    public void Keychain_items_are_generic_passwords_named_like_the_windows_targets()
+    {
+        _store.Set("openai", Fake.Secret());
+
+        // Attributes only (no -g or -w): this neither prints nor decrypts the value.
+        var startInfo = new ProcessStartInfo("/usr/bin/security")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        foreach (string arg in new[] { "find-generic-password", "-s", _namespace, "-a", "openai" })
+        {
+            startInfo.ArgumentList.Add(arg);
+        }
+
+        using Process process = Process.Start(startInfo)!;
+        Task<string> stderr = process.StandardError.ReadToEndAsync();
+        string output = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+
+        Assert.True(process.ExitCode == 0, stderr.Result);
+        Assert.Contains($"\"svce\"<blob>=\"{_namespace}\"", output);
+        Assert.Contains("\"acct\"<blob>=\"openai\"", output);
+        Assert.Contains($"<blob>=\"{_namespace}/openai\"", output); // the label Keychain Access shows
+    }
 }
 
 /// <summary>
-/// End-to-end: the real agent-secrets.exe, the real Credential Manager, a real child process.
+/// End-to-end: the real agent-secrets executable, the real store, a real child process.
 /// Uses a unique throw-away alias and removes it afterwards.
 /// </summary>
 public sealed class EndToEndTests : IDisposable
 {
+    private const OS Supported = OS.Windows | OS.MacOS;
+
     private readonly string _alias = $"zz-e2e-test-{Guid.NewGuid():N}"[..28];
     private readonly string _secret = Fake.Secret();
     private readonly string _workDir = Directory.CreateTempSubdirectory("agentsecrets-e2e-").FullName;
@@ -93,7 +161,7 @@ public sealed class EndToEndTests : IDisposable
         Directory.Delete(_workDir, recursive: true);
     }
 
-    [Fact]
+    [PlatformFact(Supported)]
     public void Full_workflow_never_reveals_the_secret()
     {
         var transcript = new List<string>();
@@ -126,7 +194,7 @@ public sealed class EndToEndTests : IDisposable
         transcript.Add(status.Output);
 
         var doctor = RunCli(["doctor"]);
-        Assert.Contains("Windows Credential Manager is accessible", doctor.Output);
+        Assert.Contains(" is accessible (", doctor.Output);
         transcript.Add(doctor.Output);
 
         var removed = RunCli(["remove", _alias, "--yes"]);
@@ -141,7 +209,7 @@ public sealed class EndToEndTests : IDisposable
         Assert.DoesNotContain(_secret, string.Join("\n", transcript));
     }
 
-    [Fact]
+    [PlatformFact(Supported)]
     public void Preserves_exit_code_and_stdio()
     {
         Assert.Equal(37, RunCli(["run", "--env", $"K={_alias}", "--", TestPaths.Probe, "exit", "37"]).ExitCode);
@@ -158,7 +226,7 @@ public sealed class EndToEndTests : IDisposable
         new[] { "--flag=value with space", "-x", "--", "--env", "A=b", "'single'", "`tick`", "$var", "*.txt" },
     };
 
-    [Theory]
+    [PlatformTheory(Supported)]
     [MemberData(nameof(TrickyArguments))]
     public void Arguments_reach_an_executable_unchanged(string[] arguments)
     {
@@ -168,7 +236,7 @@ public sealed class EndToEndTests : IDisposable
         Assert.Equal(arguments, ParseProbeArgs(result.Output));
     }
 
-    [Theory]
+    [PlatformTheory(OS.Windows)]
     [MemberData(nameof(TrickyArguments))]
     public void Arguments_reach_a_batch_file_shim_unchanged(string[] arguments)
     {
@@ -182,7 +250,54 @@ public sealed class EndToEndTests : IDisposable
         Assert.Equal(arguments, ParseProbeArgs(result.Output));
     }
 
-    [Fact]
+    [PlatformTheory(OS.MacOS)]
+    [MemberData(nameof(TrickyArguments))]
+    public void Arguments_reach_a_shell_script_shim_unchanged(string[] arguments)
+    {
+        // The same shape as pyenv/asdf shims and many wrappers: a "#!" script that forwards "$@".
+        string shim = Path.Combine(_workDir, "shim");
+        File.WriteAllText(shim, $"#!/bin/sh\nexec \"{TestPaths.Probe}\" args \"$@\"\n");
+        TestFiles.MakeExecutable(shim);
+
+        var result = RunCli(["run", "--env", $"K={_alias}", "--", shim, .. arguments]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(arguments, ParseProbeArgs(result.Output));
+    }
+
+    [PlatformFact(OS.MacOS)]
+    public void Sigterm_is_passed_on_to_the_child()
+    {
+        // A tool's timeout terminates the process it started, which is agent-secrets, not the child
+        // that holds the secret. The child writes its process id, then sleeps.
+        string pidFile = Path.Combine(_workDir, "child.pid");
+        string child = Path.Combine(_workDir, "sleeper");
+        File.WriteAllText(child, "#!/bin/sh\necho $$ > \"$1.tmp\" && mv \"$1.tmp\" \"$1\"\nexec sleep 60\n");
+        TestFiles.MakeExecutable(child);
+
+        using Process cli = StartCli(["run", "--env", $"K={_alias}", "--", child, pidFile]);
+        int childId = WaitForProcessIdFile(pidFile);
+        try
+        {
+            using (Process kill = Process.Start("/bin/kill", ["-TERM", cli.Id.ToString()]))
+            {
+                kill.WaitForExit();
+            }
+
+            Assert.True(cli.WaitForExit(TimeSpan.FromSeconds(10)), "agent-secrets did not exit after SIGTERM.");
+            Assert.Equal(128 + 15, cli.ExitCode); // the child's own status: terminated by SIGTERM
+            Assert.False(IsRunning(childId), "The child kept running after agent-secrets was terminated.");
+        }
+        finally
+        {
+            if (IsRunning(childId))
+            {
+                Process.GetProcessById(childId).Kill();
+            }
+        }
+    }
+
+    [PlatformFact(Supported)]
     public void Set_without_a_terminal_is_refused()
     {
         var result = RunCli(["set", _alias + "x"], stdin: Fake.Secret());
@@ -197,7 +312,47 @@ public sealed class EndToEndTests : IDisposable
             .Select(line => JsonSerializer.Deserialize<string>(line)!)
             .ToArray();
 
+    private static int WaitForProcessIdFile(string path)
+    {
+        var timeout = Stopwatch.StartNew();
+        while (!File.Exists(path))
+        {
+            Assert.True(timeout.Elapsed < TimeSpan.FromSeconds(10), $"{path} was not written.");
+            Thread.Sleep(50);
+        }
+
+        return int.Parse(File.ReadAllText(path).Trim());
+    }
+
+    private static bool IsRunning(int processId)
+    {
+        try
+        {
+            using Process process = Process.GetProcessById(processId);
+            return !process.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            return false; // no such process
+        }
+    }
+
     private (int ExitCode, string Output) RunCli(string[] args, string? stdin = null)
+    {
+        using Process process = StartCli(args);
+        Task<string> stdout = process.StandardOutput.ReadToEndAsync();
+        Task<string> stderr = process.StandardError.ReadToEndAsync();
+        if (stdin is not null)
+        {
+            process.StandardInput.Write(stdin);
+        }
+
+        process.StandardInput.Close();
+        process.WaitForExit();
+        return (process.ExitCode, stdout.Result + stderr.Result);
+    }
+
+    private Process StartCli(string[] args)
     {
         var startInfo = new ProcessStartInfo(TestPaths.Cli)
         {
@@ -212,16 +367,6 @@ public sealed class EndToEndTests : IDisposable
             startInfo.ArgumentList.Add(arg);
         }
 
-        using Process process = Process.Start(startInfo)!;
-        Task<string> stdout = process.StandardOutput.ReadToEndAsync();
-        Task<string> stderr = process.StandardError.ReadToEndAsync();
-        if (stdin is not null)
-        {
-            process.StandardInput.Write(stdin);
-        }
-
-        process.StandardInput.Close();
-        process.WaitForExit();
-        return (process.ExitCode, stdout.Result + stderr.Result);
+        return Process.Start(startInfo)!;
     }
 }

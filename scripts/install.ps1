@@ -65,7 +65,7 @@ param(
     $ProgressPreference = 'SilentlyContinue'   # Invoke-WebRequest is very slow with the progress bar in PS 5.1
     Set-StrictMode -Version 2.0
 
-    if ($env:OS -ne 'Windows_NT') { throw 'AgentSecrets supports Windows only.' }
+    if ($env:OS -ne 'Windows_NT') { throw "install.ps1 is the Windows installer. On macOS run: curl -fsSL https://github.com/$Repository/releases/latest/download/install.sh | sh" }
 
     if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA 'AgentSecrets' }
     $binDir = Join-Path $InstallDir 'bin'

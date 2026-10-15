@@ -34,6 +34,8 @@ param(
     $ErrorActionPreference = 'Stop'
     Set-StrictMode -Version 2.0
 
+    if ($env:OS -ne 'Windows_NT') { throw 'uninstall.ps1 is the Windows uninstaller. On macOS run: curl -fsSL https://github.com/dev-foundations/agent-secrets/releases/latest/download/uninstall.sh | sh' }
+
     if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA 'AgentSecrets' }
     $binDir = Join-Path $InstallDir 'bin'
     $exe = Join-Path $binDir 'agent-secrets.exe'

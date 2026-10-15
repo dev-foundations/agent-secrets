@@ -74,9 +74,56 @@ public sealed class CliHarness : IDisposable
 
 public static class TestPaths
 {
-    public static string Probe => Path.Combine(AppContext.BaseDirectory, "test-probe.exe");
+    public static string Probe => Executable("test-probe");
 
-    public static string Cli => Path.Combine(AppContext.BaseDirectory, "agent-secrets.exe");
+    public static string Cli => Executable("agent-secrets");
+
+    private static string Executable(string name) =>
+        Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? name + ".exe" : name);
+}
+
+public static class TestFiles
+{
+    /// <summary>chmod u+x. Windows has no execute bit, so there is nothing to do there.</summary>
+    public static void MakeExecutable(string path)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(path, File.GetUnixFileMode(path) | UnixFileMode.UserExecute);
+        }
+    }
+}
+
+[Flags]
+public enum OS
+{
+    Windows = 1,
+    MacOS = 2,
+    Linux = 4,
+    Unix = MacOS | Linux,
+}
+
+/// <summary>A [Fact] for the given platforms only; elsewhere it is reported as skipped.</summary>
+public sealed class PlatformFactAttribute : FactAttribute
+{
+    public PlatformFactAttribute(OS platforms) => Skip = Platforms.SkipReason(platforms);
+}
+
+/// <summary>A [Theory] for the given platforms only; elsewhere it is reported as skipped.</summary>
+public sealed class PlatformTheoryAttribute : TheoryAttribute
+{
+    public PlatformTheoryAttribute(OS platforms) => Skip = Platforms.SkipReason(platforms);
+}
+
+internal static class Platforms
+{
+    public static string? SkipReason(OS platforms)
+    {
+        bool runsHere = (platforms.HasFlag(OS.Windows) && OperatingSystem.IsWindows())
+            || (platforms.HasFlag(OS.MacOS) && OperatingSystem.IsMacOS())
+            || (platforms.HasFlag(OS.Linux) && OperatingSystem.IsLinux());
+        return runsHere ? null : $"Runs on {platforms} only.";
+    }
 }
 
 public static class Fake

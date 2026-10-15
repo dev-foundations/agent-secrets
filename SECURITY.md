@@ -3,40 +3,60 @@
 ## In one sentence
 
 AgentSecrets protects against **accidental exposure and secret proliferation**. It does **not**
-protect against **malicious software running with your Windows user's permissions**.
+protect against **malicious software running with your user account's permissions**.
 
 ## What it protects
 
 | Risk | How AgentSecrets helps |
 | --- | --- |
 | Keys committed to Git | No key is ever in the working tree. `.agentsecrets.json` holds names only. |
-| Keys copied into many `.env` files | One copy per machine, in Windows Credential Manager. Rotate in one place. |
+| Keys copied into many `.env` files | One copy per machine, in Windows Credential Manager or the macOS Keychain. Rotate in one place. |
 | Keys pasted into agent prompts and transcripts | Agents work with names (`openai`), never values. |
 | Keys in shell history | `set` never accepts the value as an argument; it is read from a hidden prompt. |
 | Keys in persistent environment variables | The value exists only in the environment of one child process, for its lifetime. |
 | Keys in tool output | AgentSecrets never prints a value: not in output, errors, diagnostics or logs. `list`, `exists`, `status` and `doctor` do not read values at all. Rejected input is not echoed back, in case a key was typed where a name belongs. |
-| Keys at rest | Windows encrypts Credential Manager entries for your user account. No plaintext files, no temp files. |
+| Keys at rest | The operating system encrypts them: Windows for your user account, macOS in your login keychain (protected by your login password). No plaintext files, no temp files. |
 
 ## What it does not protect
 
-- **Same-user malware or untrusted programs.** Credential Manager's Generic Credentials are
-  readable by any process running as you. Malware running as you could read them directly,
-  with or without AgentSecrets. AgentSecrets adds no barrier there and does not claim to.
+- **Same-user malware or untrusted programs.** On Windows, Credential Manager's Generic
+  Credentials are readable by any process running as you. On macOS, the Keychain asks you
+  before a program other than agent-secrets reads one of its items (see
+  [below](#macos-keychain-access-dialogs)), but malware running as you can still get you to
+  allow it, or simply run `agent-secrets run` with a command of its choosing. AgentSecrets adds
+  no real barrier there and does not claim to.
 - **Administrators and anyone who can sign in as you.**
 - **The child process.** The program you run gets the real key and can do anything with it.
 - **Memory inspection.** The value is briefly held in AgentSecrets' memory and in the child's
   environment block. The MVP avoids needless copies but does not attempt memory hardening.
-- **Backups and roaming.** Entries are stored with local-machine persistence (they do not roam),
-  but whatever backs up your Windows profile may include the encrypted vault.
+- **Backups and roaming.** On Windows, entries are stored with local-machine persistence (they
+  do not roam), but whatever backs up your Windows profile may include the encrypted vault. On
+  macOS, items live in the login keychain of this Mac (not in iCloud Keychain); Time Machine
+  backs up that keychain file, still encrypted.
 
 ### Same-user threat model
 
-The trust boundary is your Windows user account. Everything running as you is inside it:
-your shell, your editor, your coding agent, and every program they start. AgentSecrets is a
-*hygiene* tool inside that boundary — it makes the safe path the easy path — not an isolation
-mechanism. If you need a boundary between an agent and your credentials, run the agent under a
-different Windows account, in a VM or container, and give that environment only scoped,
-low-privilege keys.
+The trust boundary is your user account. Everything running as you is inside it: your shell,
+your editor, your coding agent, and every program they start. AgentSecrets is a *hygiene* tool
+inside that boundary — it makes the safe path the easy path — not an isolation mechanism. If
+you need a boundary between an agent and your credentials, run the agent under a different user
+account, in a VM or container, and give that environment only scoped, low-privilege keys.
+
+### macOS: Keychain access dialogs
+
+macOS remembers which program created each keychain item and lets that program use it without
+asking. When any other program wants the value — Apple's `security` command, an agent running
+it, or a different build of agent-secrets — macOS shows a dialog that names the program and asks
+whether it may use the item (*Always Allow*, *Deny*, *Allow*).
+
+- This is a useful safeguard: an agent that tries to read a key directly cannot do it silently.
+  Do not allow access for a program you did not expect.
+- Releases are currently signed ad hoc, not with an Apple Developer ID, so each release is a new
+  program to macOS. After installing or upgrading, expect the dialog once per secret, the first
+  time agent-secrets uses it (it can also appear when a new build overwrites or removes a
+  secret). Choose *Always Allow* for agent-secrets.
+- Without a desktop session (SSH, background jobs) there is nowhere to show the dialog: the
+  command fails with a Keychain error instead. Run it once from a terminal on the Mac itself.
 
 ## Why there is no `get` or `export`
 
@@ -44,9 +64,10 @@ A command that prints a secret turns every one of the leaks above back into a on
 agent "helpfully" runs it and the key is in the transcript; a script captures it into a file.
 Leaving it out means the *only* thing the tool can do with a value is hand it to a child
 process. This is a guard-rail against accidents, not a cryptographic guarantee: a determined
-same-user program can read Credential Manager itself or run a child that prints its
+same-user program can read the credential store itself or run a child that prints its
 environment. To look at or edit a stored value yourself, use *Control Panel → Credential
-Manager → Windows Credentials* (entries are named `AgentSecrets/<name>`).
+Manager → Windows Credentials* on Windows, or *Keychain Access* on macOS (open it with
+Spotlight and search for `AgentSecrets`). Entries are named `AgentSecrets/<name>`.
 
 ## Why secrets are injected into child processes
 
@@ -54,8 +75,8 @@ Environment variables are what virtually every SDK already reads (`OPENAI_API_KE
 `ELEVENLABS_API_KEY`, …), so no code changes are needed. Setting them on a **single child
 process** gives the narrowest practical scope: the parent shell, the agent's own process, other
 terminals and future sessions never have the value, and nothing persists when the child exits.
-The values go directly from Credential Manager into the child's environment block; they are not
-written to disk, not placed on a command line, and not set in AgentSecrets' own environment.
+The values go directly from the credential store into the child's environment block; they are
+not written to disk, not placed on a command line, and not set in AgentSecrets' own environment.
 
 ## Risks of child processes printing environment variables
 
@@ -63,7 +84,7 @@ The child — and any process *it* starts, since environments are inherited — 
 variable. Be careful with:
 
 - commands that dump the environment: `set`, `env`, `printenv`, `Get-ChildItem env:`,
-  `echo %OPENAI_API_KEY%`, `python -c "import os; print(os.environ)"`;
+  `echo %OPENAI_API_KEY%`, `echo $OPENAI_API_KEY`, `python -c "import os; print(os.environ)"`;
 - debug or verbose modes, crash reporters and test runners that log the environment;
 - CI-style scripts that echo their configuration.
 
@@ -76,7 +97,7 @@ scrollback and, if an agent ran it, in the agent's transcript. Treat it as compr
 that means its code can receive any secret the manifest names. Read the manifest (it is tiny)
 and the code before running it with your credentials — exactly as you would before running it
 with a `.env` file. Bare command names are resolved from `PATH` only, never from the current
-directory, so a repository cannot substitute its own `python.cmd` or `git.exe`.
+directory, so a repository cannot substitute its own `python.cmd`, `git.exe` or `python`.
 
 ## Safe agent usage
 

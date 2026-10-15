@@ -2,11 +2,15 @@ namespace AgentSecrets;
 
 /// <summary>
 /// Environment-variable-to-alias bindings, e.g. OPENAI_API_KEY -> openai.
-/// Variable names compare case-insensitively because Windows environment variables do.
+/// Variable names compare the way the platform's environment does: case-insensitively on
+/// Windows, case-sensitively elsewhere.
 /// </summary>
 public static class Bindings
 {
-    public static Dictionary<string, string> Create() => new(StringComparer.OrdinalIgnoreCase);
+    private static readonly StringComparer NameComparer =
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+    public static Dictionary<string, string> Create() => new(NameComparer);
 
     public static bool IsValidEnvName(string? name)
     {

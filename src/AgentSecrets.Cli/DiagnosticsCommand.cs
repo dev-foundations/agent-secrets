@@ -43,7 +43,7 @@ public static class DiagnosticsCommand
         try
         {
             string onPath = CommandResolver.Resolve("agent-secrets", Environment.CurrentDirectory);
-            if (executable is null || string.Equals(Path.GetFullPath(onPath), Path.GetFullPath(executable), StringComparison.OrdinalIgnoreCase))
+            if (executable is null || IsSameFile(onPath, executable))
             {
                 report.Ok("'agent-secrets' is on PATH");
             }
@@ -54,14 +54,38 @@ public static class DiagnosticsCommand
         }
         catch (CommandResolutionException)
         {
-            if (IsOnPersistedUserPath(Path.GetDirectoryName(executable)))
+            string? directory = Path.GetDirectoryName(executable);
+            if (OperatingSystem.IsWindows() && IsOnPersistedUserPath(directory))
             {
                 report.Info("'agent-secrets' is on your user PATH, but this terminal was opened before that change. Open a new terminal.");
             }
-            else
+            else if (OperatingSystem.IsWindows())
             {
                 report.Problem($"'agent-secrets' is not on PATH. Reinstall with:  {CliApp.InstallCommand}  (then open a new terminal)");
             }
+            else
+            {
+                // There is no persisted user PATH to compare with: shells build PATH from their startup files.
+                report.Problem($"'agent-secrets' is not on PATH. If you just installed it, open a new terminal; otherwise add " +
+                               $"{directory ?? "its directory"} to PATH in your shell profile, or reinstall with:  {CliApp.InstallCommand}");
+            }
+        }
+    }
+
+    private static bool IsSameFile(string path, string other) =>
+        string.Equals(ResolveLinks(path), ResolveLinks(other), StringComparison.OrdinalIgnoreCase);
+
+    // A symbolic link on PATH (for example one created by a package manager) still points at this copy.
+    private static string ResolveLinks(string path)
+    {
+        string fullPath = Path.GetFullPath(path);
+        try
+        {
+            return File.ResolveLinkTarget(fullPath, returnFinalTarget: true)?.FullName ?? fullPath;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return fullPath;
         }
     }
 
@@ -89,6 +113,12 @@ public static class DiagnosticsCommand
         catch (SecretStoreException ex)
         {
             report.Problem(ex.Message);
+        }
+
+        if (OperatingSystem.IsMacOS() && store is MacKeychainStore keychain && keychain.IsDefaultKeychainUnlocked() == false)
+        {
+            report.Info("The login keychain is locked. 'run' asks macOS to unlock it; without a desktop session (SSH), " +
+                        "unlock it first with: security unlock-keychain");
         }
     }
 
