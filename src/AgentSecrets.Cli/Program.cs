@@ -1,15 +1,24 @@
 using AgentSecrets;
 using AgentSecrets.Cli;
 
-if (!OperatingSystem.IsWindows())
+ISecretStore store;
+if (OperatingSystem.IsWindows())
 {
-    Console.Error.WriteLine("agent-secrets: this version supports Windows only (Windows Credential Manager backend).");
+    store = new WindowsCredentialStore();
+}
+else if (OperatingSystem.IsMacOS())
+{
+    store = new MacKeychainStore();
+}
+else
+{
+    Console.Error.WriteLine("agent-secrets: this version supports Windows (Credential Manager) and macOS (Keychain) only.");
     return ExitCodes.Error;
 }
 
 var context = new CliContext
 {
-    Store = new WindowsCredentialStore(),
+    Store = store,
     Out = Console.Out,
     Error = Console.Error,
     In = Console.In,

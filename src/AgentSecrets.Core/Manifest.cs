@@ -130,6 +130,7 @@ public sealed class Manifest
             }
 
             var bindings = AgentSecrets.Bindings.Create();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (JsonProperty binding in bindingsObject.EnumerateObject())
             {
                 if (!AgentSecrets.Bindings.IsValidEnvName(binding.Name))
@@ -149,10 +150,13 @@ public sealed class Manifest
                     throw new ManifestException(path, $"the value of \"{binding.Name}\" is not a valid secret name. {SecretName.Rules} The manifest holds secret names only, never secret values.");
                 }
 
-                if (!bindings.TryAdd(binding.Name, alias!.ToLowerInvariant()))
+                // Rejected on every platform, so a manifest that works on one also works on Windows.
+                if (!seen.Add(binding.Name))
                 {
                     throw new ManifestException(path, $"\"{binding.Name}\" is bound more than once (environment variable names are case-insensitive on Windows).");
                 }
+
+                bindings[binding.Name] = alias!.ToLowerInvariant();
             }
 
             return new Manifest(path, bindings);

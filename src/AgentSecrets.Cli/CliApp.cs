@@ -33,8 +33,9 @@ public static class CliApp
         There is intentionally no command that prints a secret value.
         """;
 
-    public const string InstallCommand =
-        "irm https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.ps1 | iex";
+    public static string InstallCommand => OperatingSystem.IsWindows()
+        ? "irm https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.ps1 | iex"
+        : "curl -fsSL https://github.com/dev-foundations/agent-secrets/releases/latest/download/install.sh | sh";
 
     public static string Version =>
         typeof(CliApp).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
