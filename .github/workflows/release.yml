@@ -112,5 +112,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" artifacts/dist/* \
-            --title "AgentSecrets $GITHUB_REF_NAME" --generate-notes --verify-tag
+          # A tag with a hyphen (v0.2.0-rc.1) is a prerelease: it never becomes releases/latest,
+          # which is what the installers download. Notes always start at the last real release,
+          # so prereleases in between do not cut them short.
+          options=(--title "AgentSecrets $GITHUB_REF_NAME" --generate-notes --verify-tag)
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then options+=(--prerelease); fi
+          previous=$(gh release list --exclude-pre-releases --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // empty')
+          if [ -n "$previous" ]; then options+=(--notes-start-tag "$previous"); fi
+          gh release create "$GITHUB_REF_NAME" artifacts/dist/* "${options[@]}"

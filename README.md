@@ -577,8 +577,10 @@ git push origin v0.2.0
 The release workflow tests and packages on Windows and macOS — `agent-secrets-win-x64.zip`,
 `agent-secrets-win-arm64.zip`, `agent-secrets-osx-arm64.tar.gz` and `agent-secrets-osx-x64.tar.gz` —
 writes `SHA256SUMS.txt`, and publishes them together with the install and uninstall scripts as a
-GitHub release. The one-line installers always fetch the latest release. The macOS binaries are
-signed ad hoc by the .NET SDK; Developer ID signing and notarization are not set up.
+GitHub release. The one-line installers always fetch the latest release. A tag with a hyphen
+(for example `v0.2.0-rc.1`) is published as a prerelease, which never becomes the latest release,
+so the pipeline can be tried first; install it with `-Version` / `--version`. The macOS binaries
+are signed ad hoc by the .NET SDK; Developer ID signing and notarization are not set up.
 
 Storage sits behind the small `ISecretStore` interface, so another backend (Linux Secret Service,
 1Password, Azure Key Vault, …) can be added without touching the commands. Windows Credential

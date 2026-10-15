@@ -2022,7 +2022,7 @@ dotnet test  AgentSecrets.slnx
 git push origin v0.2.0</code></pre>
         </div>
 
-        <p>The release workflow tests and packages on Windows and macOS — <code>agent-secrets-win-x64.zip</code>, <code>agent-secrets-win-arm64.zip</code>, <code>agent-secrets-osx-arm64.tar.gz</code> and <code>agent-secrets-osx-x64.tar.gz</code> — writes <code>SHA256SUMS.txt</code>, and publishes them together with the install and uninstall scripts as a GitHub release. The one-line installers always fetch the latest release. The macOS binaries are signed ad hoc by the .NET SDK; Developer ID signing and notarization are not set up.</p>
+        <p>The release workflow tests and packages on Windows and macOS — <code>agent-secrets-win-x64.zip</code>, <code>agent-secrets-win-arm64.zip</code>, <code>agent-secrets-osx-arm64.tar.gz</code> and <code>agent-secrets-osx-x64.tar.gz</code> — writes <code>SHA256SUMS.txt</code>, and publishes them together with the install and uninstall scripts as a GitHub release. The one-line installers always fetch the latest release. A tag with a hyphen (for example <code>v0.2.0-rc.1</code>) is published as a prerelease, which never becomes the latest release, so the pipeline can be tried first; install it with <code>-Version</code> / <code>--version</code>. The macOS binaries are signed ad hoc by the .NET SDK; Developer ID signing and notarization are not set up.</p>
 
         <h3 id="storage-backends">Storage backends and tests</h3>
 
