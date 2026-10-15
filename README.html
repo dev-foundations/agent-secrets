@@ -1265,8 +1265,8 @@ agent-secrets run --env OPENAI_API_KEY=openai -- python demo.py    # any time, b
             <p>stdin, stdout, stderr and the exit code are the child's own, so interactive programs, pipes and CI-style checks behave exactly as without the wrapper.</p>
           </div>
           <div class="card">
-            <h3><svg class="icon" aria-hidden="true"><use href="#i-noexit"/></svg>No way out</h3>
-            <p>There is deliberately no <code>get</code>, <code>show</code> or <code>export</code> command.</p>
+            <h3><svg class="icon" aria-hidden="true"><use href="#i-noexit"/></svg>No plaintext output</h3>
+            <p>There is deliberately no <code>get</code> or <code>show</code> command. For moving secrets between machines, <code>export</code> creates a password-encrypted backup; <code>import</code> restores it.</p>
           </div>
         </div>
       </section>
@@ -1453,6 +1453,26 @@ Secret 'openai' stored successfully.</code></pre>
           <li><code>set</code> refuses to run without a real terminal. An agent that tries it gets an error telling it to ask <em>you</em>. For deliberate automation there is <code>--stdin</code> (for example <code>Get-Clipboard | agent-secrets set openai --stdin</code> on Windows, <code>pbpaste | agent-secrets set openai --stdin</code> on macOS).</li>
           <li>On Windows the maximum length is 1280 characters (a Credential Manager limit).</li>
         </ul>
+
+        <h3 id="encrypted-migration">Move secrets to another machine (Windows or macOS)</h3>
+        <p>Run these commands yourself in an interactive terminal. On the source machine:</p>
+        <div class="code code--cmd" data-lang="shell">
+          <div class="code-head"><span class="code-lang">Shell</span></div>
+          <pre tabindex="0"><code>agent-secrets export keys.agentsecrets-backup</code></pre>
+        </div>
+        <p>Enter a long, unique passphrase twice at the hidden prompts. All AgentSecrets aliases and values are encrypted together. Existing files are never overwritten, and source credentials remain in their store. macOS may ask for permission to read the keychain items.</p>
+        <p>Copy the encrypted file to the destination machine, install a version supporting these commands, then run:</p>
+        <div class="code code--cmd" data-lang="shell">
+          <div class="code-head"><span class="code-lang">Shell</span></div>
+          <pre tabindex="0"><code>agent-secrets import keys.agentsecrets-backup</code></pre>
+        </div>
+        <p>Enter the same passphrase. This works in either direction between Windows and macOS. An incorrect password, modified file, invalid entry or existing alias stops the import before any credentials are written. Add <code>--force</code> only to deliberately replace existing aliases:</p>
+        <div class="code code--cmd" data-lang="shell">
+          <div class="code-head"><span class="code-lang">Shell</span></div>
+          <pre tabindex="0"><code>agent-secrets import keys.agentsecrets-backup --force</code></pre>
+        </div>
+        <p>A Mac backup containing a value longer than 1280 characters is refused on Windows before writing anything. A storage failure during writing can leave a partial import; the error reports how many entries were imported. Resolve storage access and retry with <code>--force</code> if replacing those entries.</p>
+        <p>Backups use AES-256-GCM and PBKDF2-HMAC-SHA256 (600,000 iterations), with a fresh random salt and nonce. Only encrypted bytes reach disk; passwords are accepted only at hidden terminal prompts. Keep the passphrase separately: <strong>there is no password recovery</strong>. Keep backups out of Git (<code>*.agentsecrets-backup</code> is ignored) and delete unnecessary copies. See <a href="SECURITY.md#encrypted-backups">backup format and security limits</a>.</p>
       </section>
 
       <!-- ============================ 5 ============================ -->
@@ -1969,6 +1989,8 @@ mkdir -p ~/.agents/skills/agent-secrets &amp;&amp; cp -R skill/agent-secrets/. ~
 agent-secrets list                               List secret names
 agent-secrets exists &lt;name&gt; [--quiet]            Exit 0 if it exists, 1 if not
 agent-secrets remove &lt;name&gt; [--yes]              Delete a secret
+agent-secrets export &lt;file&gt;                     Export all secrets to a password-encrypted backup
+agent-secrets import &lt;file&gt; [--force]            Restore a backup; --force replaces existing aliases
 agent-secrets run [--env NAME=secret]... [--manifest &lt;path&gt; | --no-manifest] -- &lt;command&gt; [args...]
 agent-secrets status                             Does this project have the secrets it needs?
 agent-secrets doctor                             Installation, storage, project and skill checks

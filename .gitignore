@@ -16,6 +16,7 @@ TestResults/
 .env.*
 *.pfx
 *.key
+*.agentsecrets-backup
 
 # Python example
 __pycache__/

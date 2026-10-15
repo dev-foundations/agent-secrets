@@ -42,8 +42,9 @@ public sealed class CliHarness : IDisposable
 
     /// <param name="stdin">Non-null simulates redirected (non-interactive) stdin.</param>
     /// <param name="typedSecret">What the "user" types at the hidden prompt; confirmations come from <paramref name="answers"/>.</param>
-    public int Run(string[] args, string? stdin, string? typedSecret, string answers = "")
+    public int Run(string[] args, string? stdin, string? typedSecret, string answers = "", IEnumerable<string>? typedSecrets = null)
     {
+        var inputs = new Queue<string>(typedSecrets ?? []);
         var context = new CliContext
         {
             Store = Store,
@@ -51,7 +52,7 @@ public sealed class CliHarness : IDisposable
             Error = Error,
             In = new StringReader(stdin ?? answers),
             InputRedirected = stdin is not null,
-            ReadSecretInteractive = () => typedSecret ?? throw new InvalidOperationException("No interactive secret expected."),
+            ReadSecretInteractive = () => inputs.Count > 0 ? inputs.Dequeue() : typedSecret ?? throw new InvalidOperationException("No interactive secret expected."),
             WorkingDirectory = WorkingDirectory,
         };
         return CliApp.Run(args, context);

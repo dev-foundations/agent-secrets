@@ -165,7 +165,7 @@ public class SecretCommandsTests
 
     [Theory]
     [InlineData("get")]
-    [InlineData("export")]
+    [InlineData("show")]
     public void There_is_no_command_that_reveals_secrets(string command)
     {
         using var cli = new CliHarness();

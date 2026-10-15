@@ -12,6 +12,8 @@ public static class CliApp
           agent-secrets list                              List secret names (never values)
           agent-secrets exists <name> [--quiet]           Exit code 0 if the secret exists, 1 if not
           agent-secrets remove <name> [--yes]             Delete a secret
+          agent-secrets export <file>                    Export all secrets to a password-encrypted file
+          agent-secrets import <file> [--force]           Import an encrypted backup (prompted password)
           agent-secrets run [options] -- <command> [args] Run a command with secrets in its environment
           agent-secrets status                            Check the current project's required secrets
           agent-secrets doctor                            Check installation, storage, project and agent skills
@@ -69,16 +71,20 @@ public static class CliApp
                     return SecretCommands.Exists(rest, context);
                 case "remove" or "rm" or "delete":
                     return SecretCommands.Remove(rest, context);
+                case "export":
+                    return BackupCommands.Export(rest, context);
+                case "import":
+                    return BackupCommands.Import(rest, context);
                 case "run":
                     return RunCommand.Execute(rest, context);
                 case "status":
                     return DiagnosticsCommand.Execute(rest, context, full: false);
                 case "doctor":
                     return DiagnosticsCommand.Execute(rest, context, full: true);
-                case "get" or "show" or "print" or "export" or "dump" or "reveal":
+                case "get" or "show" or "print" or "dump" or "reveal":
                     context.Error.WriteLine(
-                        $"agent-secrets: there is intentionally no '{command}' command. Secrets are never printed or exported; " +
-                        "they are only injected into a child process:");
+                        $"agent-secrets: there is intentionally no '{command}' command. Secrets are never printed; " +
+                        "use an encrypted backup for transfer, or inject them into a child process:");
                     context.Error.WriteLine("    agent-secrets run --env NAME=<secret-name> -- <command>");
                     return ExitCodes.Usage;
                 default:
@@ -100,6 +106,17 @@ public static class CliApp
         {
             context.Error.WriteLine($"agent-secrets: {ex.Message}");
             return command == "run" ? ExitCodes.RunFailed : ExitCodes.Error;
+        }
+        catch (BackupException ex)
+        {
+            context.Error.WriteLine($"agent-secrets: {ex.Message}");
+            return ExitCodes.Error;
+        }
+        catch (Exception ex) when ((command is "export" or "import") && (ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException))
+        {
+            // File and cryptography exceptions are not reflected: no payload or password in output.
+            context.Error.WriteLine("agent-secrets: backup failed. Check the file path, permissions, available disk space and cryptography support.");
+            return ExitCodes.Error;
         }
     }
 }

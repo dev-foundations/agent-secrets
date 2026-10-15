@@ -15,4 +15,7 @@ Credentials on this machine are managed by the `agent-secrets` CLI. You handle s
   terminal). I enter the credential, never you.
 - Never put secret values in `.env`, source, config, scripts, logs or commits; never ask me to
   paste a key; never print or inspect secret environment variables; never search the machine
-  for keys. There is no `get`/`export` command by design.
+  for keys. There is no plaintext `get` or `show` command by design.
+- Encrypted migration is human-operated: ask me to run `agent-secrets export <file>` or
+  `agent-secrets import <file> [--force]` in my own interactive terminal. Never run these with
+  real credentials, handle the backup password or decrypt a backup. `--force` replaces aliases.

@@ -22,7 +22,11 @@ or handle a secret *value*.
   the macOS Keychain or `security find-generic-password`, the registry, environment dumps) to
   work around a missing secret.
 - Never run `agent-secrets set` yourself and never invent or supply a value. There is no
-  `get` or `export` command; do not look for one.
+  plaintext `get` or `show` command; do not look for one.
+- For backup or migration, ask the human to run `agent-secrets export <file>` or
+  `agent-secrets import <file> [--force]` themselves in their own interactive terminal.
+  These commands use password-encrypted files. Never run them with real credentials yourself,
+  request or handle the backup password, or decrypt a backup. `--force` replaces existing aliases.
 
 ## Workflow
 

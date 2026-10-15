@@ -88,7 +88,8 @@ remember. AgentSecrets replaces all of that with one rule:
   your user environment and the agent's session are never modified.
 - **Transparent** – stdin, stdout, stderr and the exit code are the child's own, so
   interactive programs, pipes and CI-style checks behave exactly as without the wrapper.
-- **No way out** – there is deliberately no `get`, `show` or `export` command.
+- **No plaintext output** – there is deliberately no `get` or `show` command. For moving secrets
+  between machines, `export` creates a password-encrypted backup; `import` restores it.
 
 ## 3. Installation
 
@@ -217,6 +218,47 @@ Things worth knowing:
   to ask *you*. For deliberate automation there is `--stdin` (for example
   `Get-Clipboard | agent-secrets set openai --stdin` on Windows, `pbpaste | agent-secrets set openai --stdin` on macOS).
 - On Windows the maximum length is 1280 characters (a Credential Manager limit).
+
+### Move secrets to another machine (Windows or macOS)
+
+On the source machine, run this **yourself in an interactive terminal**:
+
+```shell
+agent-secrets export keys.agentsecrets-backup
+```
+
+Enter a long, unique backup passphrase twice at the hidden prompts. The file includes **all
+AgentSecrets aliases and values**, encrypted together. Existing files are never overwritten;
+choose a new filename for each backup. The original credentials remain in the source machine's
+credential store. macOS may ask for permission to read the keychain items.
+
+Copy the encrypted file to the other machine, install a version of AgentSecrets that supports
+these commands, and run:
+
+```shell
+agent-secrets import keys.agentsecrets-backup
+```
+
+Enter the same passphrase at the hidden prompt. This works in either direction between Windows
+and macOS: imported secrets go into the destination user's Credential Manager or Keychain.
+An incorrect password, a modified file, an invalid entry or an existing alias stops the import
+before any credentials are written. To deliberately replace existing aliases:
+
+```shell
+agent-secrets import keys.agentsecrets-backup --force
+```
+
+Windows cannot store secrets longer than 1280 characters. If a Mac backup contains one, the
+whole import is refused on Windows before writing anything. Storage failures during the write
+phase can leave a partial import; the error reports how many entries were imported. Resolve the
+storage problem and retry with `--force` if you want to replace those entries.
+
+Backups use AES-256-GCM with a random salt and nonce and PBKDF2-HMAC-SHA256 (600,000 iterations).
+Only encrypted bytes reach disk, including any temporary file; aliases, values and passwords
+are never printed. Passwords cannot be supplied through arguments, environment variables or
+stdin. Keep the passphrase separately: **there is no password recovery**. Keep backups out of
+Git (`*.agentsecrets-backup` is ignored), and remove copies you no longer need. See
+[the backup format and security limits](SECURITY.md#encrypted-backups).
 
 ## 5. List, check and remove secrets
 
@@ -537,6 +579,8 @@ agent-secrets set <name> [--force] [--stdin]     Store a secret (prompted, never
 agent-secrets list                               List secret names
 agent-secrets exists <name> [--quiet]            Exit 0 if it exists, 1 if not
 agent-secrets remove <name> [--yes]              Delete a secret
+agent-secrets export <file>                     Export all secrets to a password-encrypted backup
+agent-secrets import <file> [--force]            Restore a backup; --force replaces existing aliases
 agent-secrets run [--env NAME=secret]... [--manifest <path> | --no-manifest] -- <command> [args...]
 agent-secrets status                             Does this project have the secrets it needs?
 agent-secrets doctor                             Installation, storage, project and skill checks

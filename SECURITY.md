@@ -9,13 +9,13 @@ protect against **malicious software running with your user account's permission
 
 | Risk | How AgentSecrets helps |
 | --- | --- |
-| Keys committed to Git | No key is ever in the working tree. `.agentsecrets.json` holds names only. |
+| Keys committed to Git | No plaintext key is written to the working tree. `.agentsecrets.json` holds names only. Encrypted backups should also stay out of Git. |
 | Keys copied into many `.env` files | One copy per machine, in Windows Credential Manager or the macOS Keychain. Rotate in one place. |
 | Keys pasted into agent prompts and transcripts | Agents work with names (`openai`), never values. |
 | Keys in shell history | `set` never accepts the value as an argument; it is read from a hidden prompt. |
 | Keys in persistent environment variables | The value exists only in the environment of one child process, for its lifetime. |
 | Keys in tool output | AgentSecrets never prints a value: not in output, errors, diagnostics or logs. `list`, `exists`, `status` and `doctor` do not read values at all. Rejected input is not echoed back, in case a key was typed where a name belongs. |
-| Keys at rest | The operating system encrypts them: Windows for your user account, macOS in your login keychain (protected by your login password). No plaintext files, no temp files. |
+| Keys at rest | The operating system encrypts them: Windows for your user account, macOS in your login keychain (protected by your login password). Backups use a separate password; no plaintext credential files or plaintext temporary files are written. |
 
 ## What it does not protect
 
@@ -58,16 +58,66 @@ whether it may use the item (*Always Allow*, *Deny*, *Allow*).
 - Without a desktop session (SSH, background jobs) there is nowhere to show the dialog: the
   command fails with a Keychain error instead. Run it once from a terminal on the Mac itself.
 
-## Why there is no `get` or `export`
+## Why there is no plaintext `get` or `show`
 
 A command that prints a secret turns every one of the leaks above back into a one-liner: an
 agent "helpfully" runs it and the key is in the transcript; a script captures it into a file.
-Leaving it out means the *only* thing the tool can do with a value is hand it to a child
-process. This is a guard-rail against accidents, not a cryptographic guarantee: a determined
+Leaving it out keeps plaintext values out of terminal output. The separate `export` command
+writes only password-encrypted backups and requires a human at a hidden terminal prompt.
+This is a guard-rail against accidents, not a cryptographic guarantee: a determined
 same-user program can read the credential store itself or run a child that prints its
 environment. To look at or edit a stored value yourself, use *Control Panel → Credential
 Manager → Windows Credentials* on Windows, or *Keychain Access* on macOS (open it with
 Spotlight and search for `AgentSecrets`). Entries are named `AgentSecrets/<name>`.
+
+## Encrypted backups
+
+`agent-secrets export <file>` copies every AgentSecrets alias and value to a portable encrypted
+file. `agent-secrets import <file> [--force]` restores them into the destination machine's native
+credential store. Both require an interactive terminal; passwords are never accepted through
+arguments, environment variables or stdin. Export asks twice and never overwrites an existing
+file. Import refuses existing aliases unless the user passes `--force`.
+
+Version 1 has this binary layout, independent of OS and CPU:
+
+| Field | Size | Meaning |
+| --- | --- | --- |
+| Magic/version | 8 bytes | ASCII `AGSBKP01` |
+| Salt | 16 bytes | Cryptographically random, fresh for every export |
+| Nonce | 12 bytes | Cryptographically random, fresh for every export |
+| Authentication tag | 16 bytes | AES-GCM tag |
+| Ciphertext | Remaining bytes | UTF-8 JSON object mapping aliases to values |
+
+The 256-bit key is derived from the exact password (UTF-8, without trimming or normalization)
+with PBKDF2-HMAC-SHA256 and 600,000 iterations. AES-256-GCM authenticates the ciphertext and the
+36-byte header (magic, salt and nonce). The password and derived key are not stored in the file.
+The file is limited to 16 MiB; its size and format are checked before key derivation. PBKDF2's
+work factor is fixed by version 1, so a malicious header cannot request unbounded iterations.
+See [.NET AES-GCM](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.aesgcm?view=net-10.0)
+and [OWASP's PBKDF2 guidance](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2).
+
+Aliases and values are encrypted together. The header, file size and secret count printed at
+export/import are not confidential. The file can be attacked offline: **use a long, unique
+passphrase and keep it separately**. There is no password recovery. A backup remains valid
+after deleting credentials from the source machine; rotating a key does not change old backups.
+
+Export builds the encrypted archive in memory and writes only ciphertext to a sibling temporary
+file, then moves it into place without replacing an existing file. On macOS the backup is
+created with owner read/write permissions (0600); Windows uses inherited directory permissions.
+The plaintext payload byte buffer and derived key are cleared after use, but managed strings
+and runtime buffers cannot all be reliably erased. The existing memory-inspection limitation
+still applies.
+
+Import authenticates and validates the whole payload and checks all conflicts before writing.
+On Windows it also checks every value against Credential Manager's 1280-character limit, so
+oversized Mac entries cannot cause a partial import. Native stores do not offer a transaction
+across entries: a later storage failure can leave a partial import, which is reported with a
+count. `--force` explicitly permits replacing existing values, including entries already
+imported by a previous partial attempt. Do not change the store concurrently during import.
+
+Backups are intended for human-operated migration. Agents must ask the user to run these
+commands themselves, never request the password or decrypt a backup. Do not commit backups or
+leave unnecessary copies on shared storage.
 
 ## Why secrets are injected into child processes
 
